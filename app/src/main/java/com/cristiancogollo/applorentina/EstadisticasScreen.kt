@@ -142,7 +142,7 @@ fun EstadisticaCard(valor: String, descripcion: String) {
     ) {
         Text(
             text = valor,
-            fontSize = 28.sp,
+            fontSize = 25.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
@@ -151,6 +151,7 @@ fun EstadisticaCard(valor: String, descripcion: String) {
             text = descripcion,
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
             color = Color.White
         )
     }
