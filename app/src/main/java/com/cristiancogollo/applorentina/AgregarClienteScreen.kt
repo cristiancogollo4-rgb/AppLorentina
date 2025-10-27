@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 // Definición de colores del proyecto
 val ColorVerdeOscuro = Color(0xFFB5CC00)
@@ -241,3 +242,4 @@ fun AgregarClientePreview() {
         AgregarClienteScreen()
     }
 }
+
