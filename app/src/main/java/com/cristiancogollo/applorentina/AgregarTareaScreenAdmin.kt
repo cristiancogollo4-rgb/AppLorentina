@@ -7,9 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,13 +24,18 @@ import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
 fun AgregarTareaScreenAdmin() {
-    // Estados de los campos
     var referencia by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
-    // Tallas (35 a 42)
-    val tallas = (35..42).toList()
-    val tallasSeleccionadas = remember { mutableStateMapOf<Int, String>() }
+    // Estado del proceso
+    var expandedEstado by remember { mutableStateOf(false) }
+    var estadoSeleccionado by remember { mutableStateOf("Seleccione estado") }
+    val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla")
+
+    // Selector único de talla
+    var expandedTalla by remember { mutableStateOf(false) }
+    var tallaSeleccionada by remember { mutableStateOf("Talla") }
+    val tallas = listOf("35", "36", "37", "38", "39", "40", "41", "42")
 
     Column(
         modifier = Modifier
@@ -41,7 +44,7 @@ fun AgregarTareaScreenAdmin() {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🩶 Barra superior gris con imagen
+        // 🩶 Barra superior gris
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -58,7 +61,7 @@ fun AgregarTareaScreenAdmin() {
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(15.dp))
 
         // 🟤 Título principal
         Text(
@@ -69,7 +72,16 @@ fun AgregarTareaScreenAdmin() {
             textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "Registra una nueva referencia y color",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Campo Referencia
         OutlinedTextField(
@@ -84,8 +96,8 @@ fun AgregarTareaScreenAdmin() {
                 )
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFC2D500),
-                unfocusedBorderColor = Color(0xFFC2D500)
+                focusedBorderColor = Color(0xFFBDBDBD),
+                unfocusedBorderColor = Color(0xFFBDBDBD)
             ),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth(0.85f)
@@ -106,8 +118,8 @@ fun AgregarTareaScreenAdmin() {
                 )
             },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFC2D500),
-                unfocusedBorderColor = Color(0xFFC2D500)
+                focusedBorderColor = Color(0xFFBDBDBD),
+                unfocusedBorderColor = Color(0xFFBDBDBD)
             ),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth(0.85f)
@@ -115,81 +127,103 @@ fun AgregarTareaScreenAdmin() {
 
         Spacer(modifier = Modifier.height(25.dp))
 
-        // 🔹 Título de tallas
+        // 🔹 Selector único de Talla
         Text(
-            text = "Selecciona las tallas disponibles:",
+            text = "Selecciona la talla:",
             fontWeight = FontWeight.Bold,
             color = Color.Gray,
             fontSize = 14.sp,
             modifier = Modifier
                 .align(Alignment.Start)
-                .padding(start = 30.dp, bottom = 8.dp)
+                .padding(start = 30.dp, bottom = 6.dp)
         )
 
-        // 🔸 Cuadrícula de tallas (2 columnas)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 25.dp)
-        ) {
-            for (i in tallas.chunked(2)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    i.forEach { talla ->
-                        var expanded by remember { mutableStateOf(false) }
-                        var seleccion by remember { mutableStateOf("Talla $talla") }
+        Box(modifier = Modifier.fillMaxWidth(0.85f)) {
+            Button(
+                onClick = { expandedTalla = !expandedTalla },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFBDBDBD)
+                ),
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(45.dp)
+            ) {
+                Text(tallaSeleccionada, color = Color.White, fontSize = 14.sp)
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Seleccionar talla",
+                    tint = Color.White
+                )
+            }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.48f)
-                                .padding(4.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { expanded = true },
-                                shape = RoundedCornerShape(6.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color.Black
-                                ),
-                                border = ButtonDefaults.outlinedButtonBorder.copy(
-                                    width = 1.dp,
-                                    brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFC2D500))
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(seleccion, fontSize = 14.sp)
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = Color(0xFFC2D500)
-                                )
-                            }
-
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                listOf("Disponible", "No disponible").forEach { estado ->
-                                    DropdownMenuItem(
-                                        text = { Text(estado) },
-                                        onClick = {
-                                            seleccion = "Talla $talla ($estado)"
-                                            expanded = false
-                                            tallasSeleccionadas[talla] = estado
-                                        }
-                                    )
-                                }
-                            }
+            DropdownMenu(
+                expanded = expandedTalla,
+                onDismissRequest = { expandedTalla = false }
+            ) {
+                tallas.forEach { talla ->
+                    DropdownMenuItem(
+                        text = { Text(talla) },
+                        onClick = {
+                            tallaSeleccionada = "Talla $talla"
+                            expandedTalla = false
                         }
-                    }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(25.dp))
+
+        // 🔹 Estado del proceso
+        Text(
+            text = "Estado del proceso:",
+            fontWeight = FontWeight.Bold,
+            color = Color.Gray,
+            fontSize = 14.sp,
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(start = 30.dp, bottom = 6.dp)
+        )
+
+        Box(modifier = Modifier.fillMaxWidth(0.85f)) {
+            Button(
+                onClick = { expandedEstado = !expandedEstado },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFBDBDBD)
+                ),
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(45.dp)
+            ) {
+                Text(estadoSeleccionado, color = Color.White, fontSize = 14.sp)
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Seleccionar estado",
+                    tint = Color.White
+                )
+            }
+
+            DropdownMenu(
+                expanded = expandedEstado,
+                onDismissRequest = { expandedEstado = false }
+            ) {
+                estados.forEach { estado ->
+                    DropdownMenuItem(
+                        text = { Text(estado) },
+                        onClick = {
+                            estadoSeleccionado = estado
+                            expandedEstado = false
+                        }
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        // 🟩 Botón ENVIAR
+        // 🩶 Botón ENVIAR
         Button(
             onClick = { /* Acción futura */ },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
