@@ -181,61 +181,50 @@ fun InventarioItem(referencia: String, colorZapato: String, imagenId: Int) {
                 Text("Ref: $referencia", fontWeight = FontWeight.Bold)
                 Text(colorZapato, color = Color.Gray)
 
-                Spacer(modifier = Modifier.height(6.dp))
+
 
                 // 🔸 Selector de talla
-                Box {
-                    Button(
-                        onClick = { expandedTalla = !expandedTalla },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
-                        shape = RoundedCornerShape(6.dp),
-                        modifier = Modifier.height(38.dp)
-                    ) {
-                        Text(tallaSeleccionada, color = Color.White)
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Seleccionar talla",
-                            tint = Color.White
-                        )
-                    }
 
-                    DropdownMenu(
-                        expanded = expandedTalla,
-                        onDismissRequest = { expandedTalla = false }
-                    ) {
-                        (35..42).forEach { talla ->
-                            DropdownMenuItem(
-                                text = { Text("Talla $talla") },
-                                onClick = {
-                                    tallaSeleccionada = "Talla $talla"
-                                    expandedTalla = false
-                                }
-                            )
-                        }
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.width(10.dp))
+            // 🔸 Selector de talla
+            Box {
+                Button(
+                    onClick = { expandedTalla = !expandedTalla },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.height(38.dp)
+                ) {
+                    Text(tallaSeleccionada, color = Color.White)
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Seleccionar talla",
+                        tint = Color.White
+                    )
+                }
 
-            // 🔘 Botón MODIFICAR gris
-            Button(
-                onClick = { /* acción futura */ },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier.height(38.dp)
-            ) {
-                Text(
-                    text = "MODIFICAR",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
+                DropdownMenu(
+                    expanded = expandedTalla,
+                    onDismissRequest = { expandedTalla = false }
+                ) {
+                    (35..42).forEach { talla ->
+                        DropdownMenuItem(
+                            text = { Text("Talla $talla") },
+                            onClick = {
+                                tallaSeleccionada = "Talla $talla"
+                                expandedTalla = false
+                            }
+                        )
+                    }
+                }
             }
         }
+
+
+        }
     }
-}
+
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
