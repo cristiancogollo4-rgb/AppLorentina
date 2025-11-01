@@ -7,6 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +26,7 @@ import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 
 @Composable
-fun HomeAdmin() {
+fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
     // 🟢 Nombre dinámico (puedes cambiarlo o traerlo desde base de datos)
     var userName by remember { mutableStateOf("Angélica") }
 
@@ -41,7 +43,23 @@ fun HomeAdmin() {
                 .background(Color(0xFFBDBDBD))
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
-        ) {
+        ) {// Botón de Cerrar Sesión (Atrás)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp) // Pequeño margen
+            ) {
+                IconButton(onClick = onLogoutClick) { // 👈 Llama al callback al hacer clic
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Cerrar Sesión",
+
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp) // Tamaño visible
+                    )
+                }
+            }
             Image(
                 painter = painterResource(id = R.drawable.lorenita), // tu logo
                 contentDescription = "Logo Lorentina",

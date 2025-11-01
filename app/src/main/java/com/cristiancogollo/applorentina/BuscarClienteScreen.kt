@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,8 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun BuscarClienteScreen() {
+fun BuscarClienteScreen(onBackClick: () -> Unit,
+                        onAddClientClick: () -> Unit) {
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
     val colorGrisTexto = Color(0xFF5C5C5C)
@@ -33,15 +35,25 @@ fun BuscarClienteScreen() {
     var searchQuery by remember { mutableStateOf("") }
 
     val clientes = listOf(
-        "Juan Perez", "Maria Gomez", "Carlos Ruiz", "Laura Sanchez", "Ana Lopez", "Pedro Ramirez", "Sofia Torres",
-        "Luis Castro", "Elena Díaz", "Javier Soto", "Marta Vidal", "Ricardo Núñez" // Más clientes para que la lista desplace
+        "Juan Perez",
+        "Maria Gomez",
+        "Carlos Ruiz",
+        "Laura Sanchez",
+        "Ana Lopez",
+        "Pedro Ramirez",
+        "Sofia Torres",
+        "Luis Castro",
+        "Elena Díaz",
+        "Javier Soto",
+        "Marta Vidal",
+        "Ricardo Núñez" // Más clientes para que la lista desplace
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFEFEFEF))
-            .padding(top = 16.dp, start = 8.dp, end = 8.dp),
+            .background(Color(0xFFEFEFEF)),
+            //.padding(top = 16.dp, start = 8.dp, end = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Contenedor principal para el contenido blanco
@@ -49,7 +61,7 @@ fun BuscarClienteScreen() {
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            //elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             // Utilizamos Box para apilar el contenido principal (Column) y el FAB
             Box(modifier = Modifier.fillMaxSize()) {
@@ -64,10 +76,29 @@ fun BuscarClienteScreen() {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                            .background(
+                                colorVerdeClaro,
+                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                            )
                             .padding(vertical = 15.dp),
                         contentAlignment = Alignment.Center
                     ) {
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                        ) {
+                            IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Volver",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(35.dp)
+                                )
+                            }
+                        }
+
                         // RESTAURACIÓN DE LA IMAGEN DE LOGO COMPLETA
 
                         Image(
@@ -96,8 +127,19 @@ fun BuscarClienteScreen() {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("BUSCAR CLIENTE....", color = Color.Gray.copy(alpha = 0.7f)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.Gray.copy(alpha = 0.7f)) },
+                        placeholder = {
+                            Text(
+                                "BUSCAR CLIENTE....",
+                                color = Color.Gray.copy(alpha = 0.7f)
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = Color.Gray.copy(alpha = 0.7f)
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
@@ -118,11 +160,23 @@ fun BuscarClienteScreen() {
                             .padding(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        FilterButton(text = "NOMBRE", isSelected = true, modifier = Modifier.weight(1f))
+                        FilterButton(
+                            text = "NOMBRE",
+                            isSelected = true,
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        FilterButton(text = "C.C", isSelected = false, modifier = Modifier.weight(1f))
+                        FilterButton(
+                            text = "C.C",
+                            isSelected = false,
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        FilterButton(text = "TELÉFONO", isSelected = false, modifier = Modifier.weight(1f))
+                        FilterButton(
+                            text = "TELÉFONO",
+                            isSelected = false,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -144,7 +198,7 @@ fun BuscarClienteScreen() {
 
                 // 3. Botón flotante (SIN MODIFICACIONES)
                 FloatingActionButton(
-                    onClick = { /* TODO: agregar cliente */ },
+                    onClick = onAddClientClick,
                     containerColor = colorVerdeOscuro,
                     contentColor = Color.White,
                     shape = RoundedCornerShape(
@@ -247,6 +301,7 @@ fun ClienteCard(nombre: String) {
         }
     }
 }
+
 @Preview(showBackground = true)
 @Composable
 fun BuscarClientePreview() {
@@ -256,7 +311,8 @@ fun BuscarClientePreview() {
     // Para simplificar la vista previa, usaré un Surface.
     AppLorentinaTheme {
         Surface(color = Color(0xFFEFEFEF)) { // El color de fondo de la preview para el "borde"
-            BuscarClienteScreen()
+            BuscarClienteScreen(onBackClick = {},
+                onAddClientClick = {})
         }
     }
 }

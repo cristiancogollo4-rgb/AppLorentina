@@ -54,12 +54,11 @@ enum class UserRole { VENDEDOR, ADMINISTRADOR }
 // -------------------------
 
 @Composable
-fun LorentinaLoginScreen(
-    onLoginClick: () -> Unit = {},
+fun LorentinaLoginScreen( 
+    onLoginClick: (UserRole) -> Unit = {},
     onForgotPasswordClick: () -> Unit = {}
 ) {
     // Definición de Colores
-    val ColorLorentinaPrimary = Color(0xFFC7E534)
     val ColorLorentinaFilter = Color(0x99C7E534)
     val ColorGris = Color(0xFFa6a6a6) // Gris medio para las etiquetas
 
@@ -246,7 +245,7 @@ fun LorentinaLoginScreen(
 
                     // --- Botón de Ingresar ---
                     Button(
-                        onClick = onLoginClick,
+                        onClick = { onLoginClick(selectedRole) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),

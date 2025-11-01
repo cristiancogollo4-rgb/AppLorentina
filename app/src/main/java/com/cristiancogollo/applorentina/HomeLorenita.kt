@@ -5,8 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,18 +24,20 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavHostController, onLogoutClick: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Barra superior con imagen
+        // Barra superior con imagen y Botón de Cerrar Sesión
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -39,6 +45,21 @@ fun HomeScreen() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            // Botón de Cerrar Sesión (Atrás)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart) // Alinear solo a la izquierda
+                    .padding(start = 8.dp)
+            ) {
+                IconButton(onClick = onLogoutClick) { // Llama al callback al hacer clic
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Cerrar Sesión",
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+            }
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -70,8 +91,13 @@ fun HomeScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HomeCardButton("CLIENTES", R.drawable.ic_group, iconSize = 90.dp)
-                HomeCardButton("INVENTARIO", R.drawable.ic_inventory_2, iconSize = 90.dp)
+                // 📞 CLIENTES
+                HomeCardButton("CLIENTES", R.drawable.ic_group, iconSize = 90.dp,
+                    onClick = { navController.navigate(Screen.BuscarCliente.route) })
+
+                // 📦 INVENTARIO
+                HomeCardButton("INVENTARIO", R.drawable.ic_inventory_2, iconSize = 90.dp,
+                    onClick = { navController.navigate(Screen.Stock.route) })
             }
 
             Spacer(modifier = Modifier.height(50.dp))
@@ -80,16 +106,21 @@ fun HomeScreen() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HomeCardButton("VENTAS", R.drawable.ic_shopping_bag, iconSize = 90.dp)
-                HomeCardButton("ESTADÍSTICAS", R.drawable.ic_bar_chart, iconSize = 90.dp)
+                // 💰 VENTAS
+                HomeCardButton("VENTAS", R.drawable.ic_shopping_bag, iconSize = 90.dp,
+                    onClick = { navController.navigate(Screen.Hventas.route) })
+
+                // 📈 ESTADÍSTICAS
+                HomeCardButton("ESTADÍSTICAS", R.drawable.ic_bar_chart, iconSize = 90.dp,
+                    onClick = { navController.navigate(Screen.Estadisticas.route)})
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Botón de producción
+        // Botón de producción (Usando el onClick del Button)
         Button(
-            onClick = { /* Acción futura */ },
+            onClick = { navController.navigate(Screen.Produccion.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC2D500)),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
@@ -119,19 +150,21 @@ fun HomeScreen() {
 }
 
 @Composable
-fun HomeCardButton(text: String, iconId: Int, iconSize: Dp) {
-    Surface(
+fun HomeCardButton(text: String, iconId: Int, iconSize: Dp,
+                   onClick: () -> Unit) {
+    // 💡 CORREGIDO: Se refactoriza para usar el componente Button, que garantiza el manejo de clics.
+    Button(
+        onClick = onClick, // 👈 Se usa el onClick del Button, que es más robusto
         shape = RoundedCornerShape(22.dp),
-        color = Color(0xFFC2D500),
-        shadowElevation = 8.dp,
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC2D500)),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp),
+        contentPadding = PaddingValues(10.dp), // Ajusta el padding interno
         modifier = Modifier
             .width(165.dp)
             .height(145.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(10.dp),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -156,6 +189,6 @@ fun HomeCardButton(text: String, iconId: Int, iconSize: Dp) {
 @Composable
 fun HomePreview() {
     AppLorentinaTheme {
-        HomeScreen()
+        HomeScreen(navController = rememberNavController())
     }
 }

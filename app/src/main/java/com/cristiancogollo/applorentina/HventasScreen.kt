@@ -27,7 +27,8 @@ import androidx.compose.ui.unit.sp
 // =================================================================
 
 @Composable
-fun HventasScreen() {
+fun HventasScreen(onBackClick: () -> Unit = {},
+                  onNewVentaClick: () -> Unit) {
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
     val colorCafeTexto = Color(0xFF6B4226) // Color para el título
@@ -70,7 +71,20 @@ fun HventasScreen() {
                             .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                             .padding(vertical = 15.dp),
                         contentAlignment = Alignment.Center
+                    ) {Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 8.dp)
                     ) {
+                        IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Volver",
+                                tint = Color.White,
+                                modifier = Modifier.size(35.dp)
+                            )
+                        }
+                    }
 
                         Image(
                             painter = painterResource(id = R.drawable.lorenita),
@@ -152,7 +166,7 @@ fun HventasScreen() {
 
                 // Botón flotante (FAB) - AGREGAR VENTA
                 FloatingActionButton(
-                    onClick = { /* TODO: agregar venta */ },
+                    onClick =  onNewVentaClick,
                     containerColor = colorVerdeClaro,
                     contentColor = Color.White,
                     shape = RoundedCornerShape(20.dp),
@@ -271,6 +285,7 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
 @Composable
 fun HventasScreenPreview() {
     Surface(color = Color(0xFFEFEFEF)) {
-        HventasScreen()
+        HventasScreen(onBackClick = { /* No hace nada en Preview */ },
+            onNewVentaClick = { /* No hace nada en Preview */ })
     }
 }

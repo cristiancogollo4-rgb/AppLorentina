@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +26,7 @@ import com.cristiancogollo.applorentina.R
 // import com.example.app_lorentina.R
 
 @Composable
-fun StockScreen() {
+fun StockScreen(onBackClick: () -> Unit = {}) {
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
     val colorGrisTexto = Color(0xFF5C5C5C)
@@ -63,7 +65,20 @@ fun StockScreen() {
                         .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                         .padding(vertical = 15.dp),
                     contentAlignment = Alignment.Center
+                ) {Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 8.dp)
                 ) {
+                    IconButton(onClick = onBackClick) { // Llama a la acción de volver
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = Color.White,
+                            modifier = Modifier.size(35.dp)
+                        )
+                    }
+                }
                     // Nota: Si R.drawable.lorenita falla, comenta el bloque Image.
                     Image(
                         painter = painterResource(id = R.drawable.lorenita),

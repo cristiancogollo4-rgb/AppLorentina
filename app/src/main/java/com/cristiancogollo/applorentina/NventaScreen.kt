@@ -35,7 +35,7 @@ fun NventaDialogScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ColorFondoCard)
+            .background(Color.Transparent)
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
