@@ -107,6 +107,7 @@ fun NavigationApp() {
             )
         }
 
+
         // ============================================================
         // SUBPANTALLAS DEL VENDEDOR
         // ============================================================
@@ -148,25 +149,38 @@ fun NavigationApp() {
         // SUBPANTALLAS DEL ADMINISTRADOR
         // ============================================================
         composable(Screen.AdminProduccion.route) {
-            ProduccionScreen(onBackClick = { navController.popBackStack() })
+            // ANTES: ProduccionScreen (vendedor)
+            ProduccionAdmin()  // <- tu pantalla admin de producción
         }
-
         composable(Screen.AdminClientes.route) {
-            BuscarClienteScreen(
-                onBackClick = { navController.popBackStack() },
-                onAddClientClick = { navController.navigate(Screen.AgregarCliente.route) }
-            )
+            // ANTES: BuscarClienteScreen (vendedor)
+            ClientesScreenAdmin()
         }
-
         composable(Screen.AdminInventario.route) {
-            StockScreen(onBackClick = { navController.popBackStack() })
+            // ANTES: StockScreen (vendedor)
+            InventarioScreenAdmin()
         }
-
         composable(Screen.AdminVentas.route) {
-            HventasScreen(
-                onBackClick = { navController.popBackStack() },
-                onNewVentaClick = { navController.navigate(Screen.Nventa.route) }
+            // ANTES: HventasScreen (vendedor)
+            EstadisticasScreenAdmin()
+        }
+        composable(Screen.AdminProduccion.route) {
+            ProduccionAdmin(
+                onBackClick = { navController.popBackStack() } // ✅ Funciona la flecha
             )
         }
+        composable(Screen.AdminClientes.route) {
+            ClientesScreenAdmin(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.AdminInventario.route) {
+            InventarioScreenAdmin(onBackClick = { navController.popBackStack() })
+        }
+
+
+
+
+
     }
 }
