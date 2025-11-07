@@ -1,3 +1,5 @@
+package com.cristiancogollo.applorentina
+
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,13 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext // 🌟 Necesario para acceder a Assets
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.json.JSONArray // 🌟 Necesario para parsear JSON
-import android.util.Log // 🌟 Para manejar errores de lectura de JSON
+import androidx.lifecycle.viewmodel.compose.viewModel // 🌟 Importante para obtener el ViewModel
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import android.util.Log
+import androidx.navigation.NavController // Import necesario si lo usas en la firma
 
 
 // Definición de colores del proyecto
@@ -29,82 +34,101 @@ val ColorVerdeClaroBoton = Color(0xFFC2D500)
 val ColorGrisTexto = Color(0xFF5C5C5C)
 val ColorFondoCard = Color(0xFFF8F8F8)
 
-// =================================================================
-// 🌟 1. FUNCIÓN PARA LEER EL JSON DESDE ASSETS
-// =================================================================
-
-/**
- * Lee el archivo colombia.json desde los assets y lo convierte en un mapa.
- * Estructura: Map<Departamento, List<Municipios>>
- */
-fun leerDepartamentos(context: Context): Map<String, List<String>> {
-    return try {
-        // Accede al archivo usando el AssetManager
-        val jsonText = context.assets.open("colombia.json").bufferedReader().use { it.readText() }
-        val jsonArray = JSONArray(jsonText)
-        val map = mutableMapOf<String, List<String>>()
-
-        for (i in 0 until jsonArray.length()) {
-            val item = jsonArray.getJSONObject(i)
-            val departamento = item.getString("departamento")
-            val municipiosJson = item.getJSONArray("ciudades")
-            val municipios = mutableListOf<String>()
-
-            for (j in 0 until municipiosJson.length()) {
-                municipios.add(municipiosJson.getString(j))
-            }
-            map[departamento] = municipios
-        }
-        map
-    } catch (e: Exception) {
-        // En caso de error (archivo no encontrado, JSON inválido, etc.)
-        Log.e("LeerJSON", "Error leyendo colombia.json: ${e.message}")
-        emptyMap()
-    }
-}
-
 
 // =================================================================
-// PANTALLAS Y CONTENIDO
+// PANTALLA PRINCIPAL (Conectada al ViewModel)
 // =================================================================
 
 @Composable
-fun AgregarClienteScreen() {
-    val context = LocalContext.current
+fun AgregarClienteScreen(
+    // ⚠️ Si no usas navegación, puedes omitir NavController en la firma y el cuerpo
+    viewModel: ClienteViewModel = viewModel(factory = ClienteViewModelFactory(LocalContext.current))
+) {
+    val coroutineScope = rememberCoroutineScope()
 
-    // 🌟 Cargamos los datos del JSON una sola vez
-    // Esto es un Map<String, List<String>>
-    val departamentosMap = remember { leerDepartamentos(context) }
+    // Observa los estados del ViewModel
+    val formState by viewModel.formState.collectAsState()
+    val message by viewModel.message.collectAsState()
+    val departamentos = viewModel.departamentos
+    val municipios = viewModel.municipios
 
-    // Usamos un Box y Card para simular la elevación y el fondo blanco del mockup
+    // Observa el estado de inicialización de Firebase
+    val firebaseState by viewModel.firebaseState.collectAsState()
+    // Determina si la UI debe estar en modo "Cargando/Inicializando"
+    val isDatabaseLoading = !firebaseState.isInitialized
+
+    // 🌟 ESTADO CLAVE: La validación del formulario del ViewModel
+    val isFormValid by viewModel.isFormValid.collectAsState()
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
             .padding(20.dp),
-        contentAlignment = Alignment.Center // Centrar el "diálogo"
+        contentAlignment = Alignment.Center
     ) {
-        AgregarClienteDialogContent(departamentosMap)
+        // 🌟 3. Pasa los estados y handlers al componente de contenido
+        AgregarClienteDialogContent(
+            formState = formState,
+            departamentos = departamentos,
+            municipios = municipios,
+            onNombreChange = viewModel::updateNombre,
+            onCedulaChange = viewModel::updateCedula,
+            onTelefonoChange = viewModel::updateTelefono,
+            onCorreoChange = viewModel::updateCorreo,
+            onDepartamentoChange = viewModel::updateDepartamento,
+            onMunicipioChange = viewModel::updateMunicipio,
+            isSaving = isDatabaseLoading,
+            isFormValid = isFormValid, // 🌟 MODIFICACIÓN 1: Pasar el estado de validez
+            onDetalSelect = { viewModel.setTipoCliente(true) },
+            onMayorSelect = { viewModel.setTipoCliente(false) },
+            onAgregar = viewModel::saveCliente // Llama a la lógica de guardado en Firestore
+        )
+
+        // Mostrar mensajes (Snackbar)
+        message?.let { msg ->
+            Snackbar(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.BottomCenter)
+            ) {
+                Text(msg)
+            }
+            // Ocultar mensaje después de un tiempo y limpiarlo del ViewModel
+            LaunchedEffect(msg) {
+                coroutineScope.launch {
+                    kotlinx.coroutines.delay(3000L)
+                    viewModel.clearMessage()
+                }
+            }
+        }
     }
 }
 
+// =================================================================
+// CONTENIDO DEL DIÁLOGO (Modificado)
+// =================================================================
+
 @Composable
-fun AgregarClienteDialogContent(departamentosMap: Map<String, List<String>>) {
-    // 🌟 ESTADOS PARA LOS COMPONENTES FUNCIONALES
-    var isDetalSelected by remember { mutableStateOf(true) }
-    var departamentoSeleccionado by remember { mutableStateOf("") }
-    var municipioSeleccionado by remember { mutableStateOf("") }
-
-    // 🌟 LISTAS DINÁMICAS
-    val departamentos = remember { departamentosMap.keys.toList().sorted() }
-    val municipios = remember(departamentoSeleccionado) {
-        // Filtra los municipios basándose en el departamento seleccionado
-        departamentosMap[departamentoSeleccionado] ?: emptyList()
-    }
-
+fun AgregarClienteDialogContent(
+    formState: ClienteFormState,
+    departamentos: List<String>,
+    municipios: List<String>,
+    onNombreChange: (String) -> Unit,
+    onCedulaChange: (String) -> Unit,
+    onTelefonoChange: (String) -> Unit,
+    onCorreoChange: (String) -> Unit,
+    onDepartamentoChange: (String) -> Unit,
+    onMunicipioChange: (String) -> Unit,
+    onDetalSelect: () -> Unit,
+    onMayorSelect: () -> Unit,
+    onAgregar: () -> Unit,
+    isSaving: Boolean,
+    isFormValid: Boolean // 🌟 MODIFICACIÓN 1: Recibe el estado de validez
+) {
     Card(
         modifier = Modifier
-            .fillMaxWidth(0.9f)
+            .fillMaxWidth(0.95f)
             .wrapContentHeight(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -126,36 +150,52 @@ fun AgregarClienteDialogContent(departamentosMap: Map<String, List<String>>) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Campos de entrada (sin lógica de estado, solo visual)
-            InputFieldWithIcon(placeholder = "NOMBRE CLIENTE....", icon = Icons.Outlined.Person)
+            // Campos de entrada (conectados al estado)
+            InputFieldWithIcon(
+                value = formState.nombre,
+                onValueChange = onNombreChange,
+                placeholder = "NOMBRE CLIENTE....",
+                icon = Icons.Outlined.Person
+            )
             Spacer(modifier = Modifier.height(10.dp))
-            InputFieldWithIcon(placeholder = "C.C....", icon = Icons.Default.Badge)
+            InputFieldWithIcon(
+                value = formState.cedula,
+                onValueChange = onCedulaChange,
+                placeholder = "C.C....",
+                icon = Icons.Default.Badge
+            )
             Spacer(modifier = Modifier.height(10.dp))
-            InputFieldWithIcon(placeholder = "TELÉFONO....", icon = Icons.Outlined.Phone)
+            InputFieldWithIcon(
+                value = formState.telefono,
+                onValueChange = onTelefonoChange,
+                placeholder = "TELÉFONO....",
+                icon = Icons.Outlined.Phone
+            )
             Spacer(modifier = Modifier.height(10.dp))
-            InputFieldWithIcon(placeholder = "CORREO...", icon = Icons.Default.MailOutline)
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 🌟 DEPARTAMENTO (Selector funcional)
-            DropdownSelector(
-                label = "DEPARTAMENTO....",
-                opciones = departamentos,
-                seleccionActual = departamentoSeleccionado,
-                onSeleccion = { nuevoDepto ->
-                    departamentoSeleccionado = nuevoDepto
-                    municipioSeleccionado = "" // Resetear municipio al cambiar de departamento
-                }
+            InputFieldWithIcon(
+                value = formState.correo,
+                onValueChange = onCorreoChange,
+                placeholder = "CORREO...",
+                icon = Icons.Default.MailOutline
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 🌟 MUNICIPIO (Selector funcional y dependiente)
+            // DEPARTAMENTO
+            DropdownSelector(
+                label = "DEPARTAMENTO....",
+                opciones = departamentos,
+                seleccionActual = formState.departamentoSeleccionado,
+                onSeleccion = onDepartamentoChange
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // MUNICIPIO
             DropdownSelector(
                 label = "MUNICIPIO...",
-                opciones = municipios, // Usa la lista filtrada
-                seleccionActual = municipioSeleccionado,
-                onSeleccion = { nuevoMuni -> municipioSeleccionado = nuevoMuni },
-                // Deshabilitar si no se ha seleccionado un departamento
-                isEnabled = departamentoSeleccionado.isNotEmpty()
+                opciones = municipios,
+                seleccionActual = formState.municipioSeleccionado,
+                onSeleccion = onMunicipioChange,
+                isEnabled = formState.departamentoSeleccionado.isNotEmpty()
             )
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -166,27 +206,26 @@ fun AgregarClienteDialogContent(departamentosMap: Map<String, List<String>>) {
             ) {
                 ActionButton(
                     text = "DETAL",
-                    isSelected = isDetalSelected,
-                    onClick = { isDetalSelected = true },
+                    isSelected = formState.isDetalSelected,
+                    onClick = onDetalSelect,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 ActionButton(
                     text = "POR MAYOR",
-                    isSelected = !isDetalSelected,
-                    onClick = { isDetalSelected = false },
+                    isSelected = !formState.isDetalSelected,
+                    onClick = onMayorSelect,
                     modifier = Modifier.weight(1f)
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Botón AGREGAR (Botón principal)
+            // Botón AGREGAR
             Button(
-                onClick = {
-                    Log.d("ClienteData", "Departamento: $departamentoSeleccionado, Municipio: $municipioSeleccionado, EsDetal: $isDetalSelected")
-                    // Lógica de AGREGAR a Firebase iría aquí
-                },
+                onClick = onAgregar,
+                // 🌟 MODIFICACIÓN 2: Habilitado solo si la DB está lista Y el formulario es válido
+                enabled = !isSaving && isFormValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp),
@@ -195,90 +234,31 @@ fun AgregarClienteDialogContent(departamentosMap: Map<String, List<String>>) {
                 contentPadding = PaddingValues(10.dp)
             ) {
                 Text(
-                    text = "AGREGAR",
+                    text = if (isSaving) "Conectando..." else "AGREGAR",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
-        }
-    }
-}
 
-// =================================================================
-// 🌟 2. COMPONENTE DropdownSelector (REEMPLAZA A DropdownField)
-// =================================================================
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DropdownSelector(
-    label: String,
-    opciones: List<String>,
-    seleccionActual: String,
-    onSeleccion: (String) -> Unit,
-    isEnabled: Boolean = true // Añadimos el estado de habilitado
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = seleccionActual,
-            onValueChange = { },
-            placeholder = { Text(label, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = isEnabled) { expanded = !expanded }, // Abre al tocar
-            readOnly = true,
-            enabled = isEnabled,
-            trailingIcon = {
-                Icon(
-                    imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    modifier = Modifier.clickable(enabled = isEnabled) { expanded = !expanded },
-                    tint = if (isEnabled) ColorVerdeClaroBoton else Color.Gray
-                )
-            },
-            shape = RoundedCornerShape(10.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ColorVerdeClaroBoton,
-                unfocusedBorderColor = ColorVerdeClaroBoton,
-                disabledBorderColor = Color.Gray.copy(alpha = 0.5f), // Estilo para deshabilitado
-                cursorColor = ColorVerdeOscuro,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            )
-        )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .fillMaxWidth(0.8f) // Ajusta el ancho del menú desplegable
-                .background(Color.White)
-        ) {
-            opciones.forEach { opcion ->
-                DropdownMenuItem(
-                    text = { Text(opcion) },
-                    onClick = {
-                        onSeleccion(opcion)
-                        expanded = false
-                    }
-                )
+            // Indicador de Carga/Guardado
+            if (isSaving) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp))
             }
         }
     }
 }
 
-
 // =================================================================
-// COMPONENTES REUTILIZABLES (sin cambios grandes)
+// COMPONENTES REUTILIZABLES
 // =================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InputFieldWithIcon(placeholder: String, icon: ImageVector) {
+fun InputFieldWithIcon(value: String, onValueChange: (String) -> Unit, placeholder: String, icon: ImageVector) {
     OutlinedTextField(
-        value = "",
-        onValueChange = { },
+        value = value,
+        onValueChange = onValueChange,
         placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
         leadingIcon = {
             Icon(
@@ -300,6 +280,67 @@ fun InputFieldWithIcon(placeholder: String, icon: ImageVector) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DropdownSelector(
+    label: String,
+    opciones: List<String>,
+    seleccionActual: String,
+    onSeleccion: (String) -> Unit,
+    isEnabled: Boolean = true
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = seleccionActual,
+            onValueChange = { },
+            placeholder = { Text(label, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = isEnabled) { expanded = !expanded },
+            readOnly = true,
+            enabled = isEnabled,
+            trailingIcon = {
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    modifier = Modifier.clickable(enabled = isEnabled) { expanded = !expanded },
+                    tint = if (isEnabled) ColorVerdeClaroBoton else Color.Gray
+                )
+            },
+            shape = RoundedCornerShape(10.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ColorVerdeClaroBoton,
+                unfocusedBorderColor = ColorVerdeClaroBoton,
+                disabledBorderColor = Color.Gray.copy(alpha = 0.5f),
+                cursorColor = ColorVerdeOscuro,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White
+            )
+        )
+
+        DropdownMenu(
+            expanded = expanded && isEnabled,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .background(Color.White)
+        ) {
+            opciones.forEach { opcion ->
+                DropdownMenuItem(
+                    text = { Text(opcion) },
+                    onClick = {
+                        onSeleccion(opcion)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+
 @Composable
 fun ActionButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val containerColor = if (isSelected) ColorVerdeOscuro else Color.White
@@ -320,21 +361,5 @@ fun ActionButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifie
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
         Text(text = text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-// =================================================================
-// PREVIEW
-// =================================================================
-@Preview(showBackground = true)
-@Composable
-fun AgregarClientePreview() {
-    // Definimos un mapa de ejemplo para el Preview, ya que no puede acceder a Assets
-    val sampleMap = mapOf(
-        "Antioquia" to listOf("Medellín", "Envigado", "Bello"),
-        "Santander" to listOf("Bucaramanga", "Floridablanca", "Girón")
-    )
-    Surface(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.fillMaxSize()) {
-        AgregarClienteDialogContent(sampleMap)
     }
 }
