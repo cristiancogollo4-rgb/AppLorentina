@@ -107,6 +107,7 @@ fun NavigationApp() {
             )
         }
 
+
         // ============================================================
         // SUBPANTALLAS DEL VENDEDOR
         // ============================================================
@@ -163,5 +164,23 @@ fun NavigationApp() {
             // ANTES: HventasScreen (vendedor)
             EstadisticasScreenAdmin()
         }
+        composable(Screen.AdminProduccion.route) {
+            ProduccionAdmin(
+                onBackClick = { navController.popBackStack() } // ✅ Funciona la flecha
+            )
+        }
+        composable(Screen.AdminClientes.route) {
+            ClientesScreenAdmin(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.AdminInventario.route) {
+            InventarioScreenAdmin(onBackClick = { navController.popBackStack() })
+        }
+
+
+
+
+
     }
 }

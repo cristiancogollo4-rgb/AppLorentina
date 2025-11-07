@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -24,13 +26,15 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun ProduccionAdmin() {
+fun ProduccionAdmin(
+    onBackClick: () -> Unit = {} // 👈 callback para regresar
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // 🟩 Barra superior gris con imagen
+        // 🟩 Barra superior gris con flecha y logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -38,8 +42,26 @@ fun ProduccionAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            // 🔙 Botón de regreso
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Regresar",
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+            }
+
+            // 🖼️ Logo
             Image(
-                painter = painterResource(id = R.drawable.lorenita), // tu logo
+                painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
                 modifier = Modifier
                     .height(180.dp)
