@@ -1,10 +1,8 @@
 package com.cristiancogollo.applorentina
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,10 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
-
 @Composable
-fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
-    // 🟢 Nombre dinámico (puedes cambiarlo o traerlo desde base de datos)
+fun HomeAdmin(
+    onLogoutClick: () -> Unit = {},
+    navTo: (String) -> Unit = {} // 👈 Nuevo parámetro para navegar
+) {
     var userName by remember { mutableStateOf("Angélica") }
 
     Column(
@@ -36,32 +35,34 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🟩 Barra superior gris con imagen
+        // 🟩 Barra superior gris con logo y botón atrás
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFFBDBDBD))
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
-        ) {// Botón de Cerrar Sesión (Atrás)
+        ) {
+            // 🔙 Botón de cierre de sesión
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.CenterStart)
-                    .padding(start = 8.dp) // Pequeño margen
+                    .padding(start = 8.dp)
             ) {
-                IconButton(onClick = onLogoutClick) { // 👈 Llama al callback al hacer clic
+                IconButton(onClick = onLogoutClick) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Cerrar Sesión",
-
                         tint = Color.White,
-                        modifier = Modifier.size(35.dp) // Tamaño visible
+                        modifier = Modifier.size(35.dp)
                     )
                 }
             }
+
+            // 🖼️ Logo
             Image(
-                painter = painterResource(id = R.drawable.lorenita), // tu logo
+                painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
                 modifier = Modifier
                     .height(180.dp)
@@ -82,7 +83,7 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 🟠 Texto de saludo dinámico
+        // 🟠 Saludo dinámico
         Text(
             text = "¡HOLA, ${userName.uppercase()}!",
             color = Color.Black,
@@ -93,7 +94,7 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // 🔹 Cuadrícula de botones grises
+        // 🔹 Cuadrícula de botones
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -102,8 +103,12 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HomeCardButtom("PRODUCCIÓN", R.drawable.ic_group, iconSize = 90.dp)
-                HomeCardButtom("CLIENTES", R.drawable.ic_inventory_2, iconSize = 90.dp)
+                HomeCardButtom("PRODUCCIÓN", R.drawable.ic_group, 90.dp) {
+                    navTo(Screen.AdminProduccion.route)
+                }
+                HomeCardButtom("CLIENTES", R.drawable.ic_inventory_2, 90.dp) {
+                    navTo(Screen.AdminClientes.route)
+                }
             }
 
             Spacer(modifier = Modifier.height(50.dp))
@@ -112,16 +117,20 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                HomeCardButtom("INVENTARIO", R.drawable.ic_shopping_bag, iconSize = 90.dp)
-                HomeCardButtom("VENTAS", R.drawable.ic_bar_chart, iconSize = 90.dp)
+                HomeCardButtom("INVENTARIO", R.drawable.ic_shopping_bag, 90.dp) {
+                    navTo(Screen.AdminInventario.route)
+                }
+                HomeCardButtom("VENTAS", R.drawable.ic_bar_chart, 90.dp) {
+                    navTo(Screen.AdminVentas.route)
+                }
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // 🟩 Botón inferior (también gris)
+        // 🟩 Botón inferior principal
         Button(
-            onClick = { /* Acción futura */ },
+            onClick = { navTo(Screen.AdminProduccion.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
@@ -150,16 +159,22 @@ fun HomeAdmin(onLogoutClick: () -> Unit = {}) {
     }
 }
 
-// 🟦 Composable para cada tarjeta (botones intermedios)
+// 🟦 Tarjeta reutilizable para los botones del Home
 @Composable
-fun HomeCardButtom(text: String, iconId: Int, iconSize: Dp) {
+fun HomeCardButtom(
+    text: String,
+    iconId: Int,
+    iconSize: Dp,
+    onClick: () -> Unit // 👈 Se agregó el callback
+) {
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = Color(0xFFBDBDBD), // 🔹 Botones grises
+        color = Color(0xFFBDBDBD),
         shadowElevation = 8.dp,
         modifier = Modifier
             .width(165.dp)
             .height(145.dp)
+            .clickable { onClick() } // 👈 Hace que sea interactivo
     ) {
         Column(
             modifier = Modifier
