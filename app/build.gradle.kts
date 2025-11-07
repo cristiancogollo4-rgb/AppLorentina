@@ -57,6 +57,8 @@ dependencies {
     implementation(libs.material3)
     implementation(libs.foundation)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.foundation.layout)
+    implementation(libs.androidx.compose.ui.ui)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -69,8 +71,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     //Firebase
-    implementation(libs.firebase.bom)
-
     //auth
-    implementation(libs.firebase.auth)
+
+    // --- Firebase (usa el BOM para compatibilidad) ---
+    implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
 }

@@ -1,5 +1,6 @@
 package com.cristiancogollo.applorentina
 
+import AgregarClienteScreen
 import StockScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
@@ -7,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import me.oscarsanchez.myapplication.NventaDialogScreen
+
 
 /**
  * 🗺️ Rutas de Navegación
