@@ -8,22 +8,13 @@ import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import me.oscarsanchez.myapplication.NventaDialogScreen
 
-/**
- * 🗺️ Rutas de Navegación
- * Define todas las pantallas a las que se puede navegar.
- */
 sealed class Screen(val route: String) {
-
-    // ============================================================
-    // 🔹 RUTAS PRINCIPALES
-    // ============================================================
+    // Rutas principales
     object Login : Screen("login_screen")
     object HomeVendedor : Screen("home_vendedor_screen")
     object HomeAdmin : Screen("home_admin_screen")
 
-    // ============================================================
-    // 🔹 RUTAS DEL VENDEDOR
-    // ============================================================
+    // Rutas del vendedor
     object Estadisticas : Screen("estadisticas_screen")
     object BuscarCliente : Screen("buscar_cliente_screen")
     object AgregarCliente : Screen("agregar_cliente_screen")
@@ -32,9 +23,7 @@ sealed class Screen(val route: String) {
     object Hventas : Screen("hventas_screen")
     object Nventa : Screen("nventa_screen")
 
-    // ============================================================
-    // 🔹 RUTAS DEL ADMINISTRADOR
-    // ============================================================
+    // Rutas del administrador
     object ProduccionAdmin : Screen("produccion_admin_screen")
     object ClientesAdmin : Screen("clientes_admin_screen")
     object InventarioAdmin : Screen("inventario_admin_screen")
@@ -51,9 +40,7 @@ fun NavigationApp() {
         startDestination = Screen.Login.route
     ) {
 
-        // ============================================================
-        // 1️⃣ LOGIN
-        // ============================================================
+        // 🟩 LOGIN
         composable(Screen.Login.route) {
             LorentinaLoginScreen(
                 onLoginClick = { selectedRole ->
@@ -62,13 +49,11 @@ fun NavigationApp() {
                         UserRole.ADMINISTRADOR -> navController.navigate(Screen.HomeAdmin.route)
                     }
                 },
-                onForgotPasswordClick = { /* Acción futura */ }
+                onForgotPasswordClick = { }
             )
         }
 
-        // ============================================================
-        // 2️⃣ HOME VENDEDOR
-        // ============================================================
+        // 🟦 HOME VENDEDOR
         composable(Screen.HomeVendedor.route) {
             HomeScreen(
                 navController = navController,
@@ -76,9 +61,7 @@ fun NavigationApp() {
             )
         }
 
-        // ============================================================
-        // 3️⃣ HOME ADMINISTRADOR
-        // ============================================================
+        // 🟨 HOME ADMIN
         composable(Screen.HomeAdmin.route) {
             HomeAdmin(
                 onLogoutClick = { navController.popBackStack() },
@@ -86,32 +69,24 @@ fun NavigationApp() {
             )
         }
 
-        // ============================================================
-        // 4️⃣ SUBPANTALLAS DEL VENDEDOR
-        // ============================================================
+        // 🟧 SUBPANTALLAS DEL VENDEDOR
         composable(Screen.Estadisticas.route) {
             EstadisticasScreen(onBackClick = { navController.popBackStack() })
         }
-
         composable(Screen.BuscarCliente.route) {
             BuscarClienteScreen(
                 onBackClick = { navController.popBackStack() },
                 onAddClientClick = { navController.navigate(Screen.AgregarCliente.route) }
             )
         }
-
         dialog(Screen.AgregarCliente.route) { AgregarClienteScreen() }
-
         composable(Screen.Produccion.route) {
             ProduccionScreen(onBackClick = { navController.popBackStack() })
         }
-
         composable(Screen.Stock.route) {
             StockScreen(onBackClick = { navController.popBackStack() })
         }
-
         dialog(Screen.Nventa.route) { NventaDialogScreen() }
-
         composable(Screen.Hventas.route) {
             HventasScreen(
                 onBackClick = { navController.popBackStack() },
@@ -119,30 +94,37 @@ fun NavigationApp() {
             )
         }
 
-        // ============================================================
-        // 5️⃣ SUBPANTALLAS DEL ADMINISTRADOR
-        // ============================================================
+        // 🟥 SUBPANTALLAS DEL ADMIN
         composable(Screen.ProduccionAdmin.route) {
             ProduccionAdmin(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = { navController.navigate(Screen.HomeAdmin.route) },
                 navTo = { route -> navController.navigate(route) }
             )
         }
 
         composable(Screen.ClientesAdmin.route) {
-            ClientesScreenAdmin()
+            ClientesScreenAdmin(
+                onBackClick = { navController.navigate(Screen.HomeAdmin.route) }
+            )
         }
 
         composable(Screen.InventarioAdmin.route) {
-            InventarioScreenAdmin()
+            InventarioScreenAdmin(
+                onBackClick = { navController.navigate(Screen.HomeAdmin.route) }
+            )
         }
 
         composable(Screen.EstadisticasAdmin.route) {
-            EstadisticasScreenAdmin()
+            EstadisticasScreenAdmin(
+                onBackClick = { navController.navigate(Screen.HomeAdmin.route) }
+            )
         }
 
         composable(Screen.AgregarTareaAdmin.route) {
-            AgregarTareaScreenAdmin()
+            AgregarTareaScreenAdmin(
+                onBackClick = { navController.navigate(Screen.ProduccionAdmin.route) },
+                navTo = { route -> navController.navigate(route) }
+            )
         }
     }
 }

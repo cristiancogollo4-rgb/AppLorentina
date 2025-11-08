@@ -5,6 +5,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,18 +15,19 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.graphics.nativeCanvas
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun EstadisticasScreenAdmin() {
-    // Datos
+fun EstadisticasScreenAdmin(
+    onBackClick: () -> Unit = {} // 👈 parámetro para la flecha
+) {
     val valores = listOf(40f, 30f, 60f, 50f)
     val semanas = listOf("Semana 1", "Semana 2", "Semana 3", "Semana 4")
 
@@ -34,7 +37,7 @@ fun EstadisticasScreenAdmin() {
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🩶 Barra superior gris
+        // 🩶 Barra superior con flecha y logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -42,6 +45,22 @@ fun EstadisticasScreenAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            // 🔙 Flecha de retroceso
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = Color.White,
+                    modifier = Modifier.size(35.dp)
+                )
+            }
+
+            // 🟫 Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -80,7 +99,6 @@ fun EstadisticasScreenAdmin() {
                 val scale = (size.height - 60f) / maxVal
                 val baseY = size.height - 40f
 
-                // Línea base verde
                 drawLine(
                     color = Color.Black,
                     start = Offset(0f, baseY),
@@ -88,13 +106,11 @@ fun EstadisticasScreenAdmin() {
                     strokeWidth = 6f
                 )
 
-                // Dibujar barras y etiquetas
                 valores.forEachIndexed { index, valor ->
                     val barHeight = valor * scale
                     val left = index * (barWidth + spacing) + spacing / 1.5f
                     val top = baseY - barHeight
 
-                    // Barra
                     drawRoundRect(
                         color = Color(0xFF67E8F9),
                         topLeft = Offset(left, top),
@@ -102,7 +118,6 @@ fun EstadisticasScreenAdmin() {
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
-                    // Número arriba de la barra
                     drawContext.canvas.nativeCanvas.apply {
                         drawText(
                             valor.toInt().toString(),
@@ -116,7 +131,6 @@ fun EstadisticasScreenAdmin() {
                         )
                     }
 
-                    // Semana debajo
                     drawContext.canvas.nativeCanvas.apply {
                         drawText(
                             semanas[index],
@@ -134,7 +148,7 @@ fun EstadisticasScreenAdmin() {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 🔘 Botones tipo etiqueta (centrados y unidos visualmente)
+        // 🔘 Botones tipo etiqueta
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
             modifier = Modifier.fillMaxWidth()
