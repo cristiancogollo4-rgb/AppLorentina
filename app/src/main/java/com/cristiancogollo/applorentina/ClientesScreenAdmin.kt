@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,9 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun ClientesScreenAdmin() {
+fun ClientesScreenAdmin(
+    onBackClick: () -> Unit = {} // Callback para la flecha de retroceso
+) {
     var searchText by remember { mutableStateOf("") }
 
     // Datos de ejemplo
@@ -43,7 +46,7 @@ fun ClientesScreenAdmin() {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🩶 Barra superior gris
+        // 🟩 Barra superior gris con flecha y logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -51,6 +54,24 @@ fun ClientesScreenAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            // 🔙 Botón de retroceso
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+            }
+
+            // 🖼️ Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",

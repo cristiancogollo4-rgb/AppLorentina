@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -23,7 +24,9 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun InventarioScreenAdmin() {
+fun InventarioScreenAdmin(
+    onBackClick: () -> Unit = {} // Callback para la flecha de retroceso
+) {
     var searchQuery by remember { mutableStateOf("") }
 
     Column(
@@ -31,7 +34,7 @@ fun InventarioScreenAdmin() {
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // 🩶 Barra superior gris
+        // 🟩 Barra superior gris con flecha y logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -39,6 +42,24 @@ fun InventarioScreenAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            // 🔙 Botón de retroceso
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = Color.White,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
+            }
+
+            // 🖼️ Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -85,16 +106,6 @@ fun InventarioScreenAdmin() {
         )
 
         Spacer(modifier = Modifier.height(10.dp))
-
-        // 🔹 Cabecera
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 30.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {}
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         // 🔹 Lista de productos
         LazyColumn(
@@ -180,11 +191,6 @@ fun InventarioItem(referencia: String, colorZapato: String, imagenId: Int) {
             ) {
                 Text("Ref: $referencia", fontWeight = FontWeight.Bold)
                 Text(colorZapato, color = Color.Gray)
-
-
-
-                // 🔸 Selector de talla
-
             }
 
             Spacer(modifier = Modifier.width(10.dp))
@@ -220,16 +226,13 @@ fun InventarioItem(referencia: String, colorZapato: String, imagenId: Int) {
                 }
             }
         }
-
-
-        }
     }
-
+}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun InventarioPreview() {
     AppLorentinaTheme {
-        InventarioScreenAdmin()
+        InventarioScreenAdmin(onBackClick = {})
     }
 }
