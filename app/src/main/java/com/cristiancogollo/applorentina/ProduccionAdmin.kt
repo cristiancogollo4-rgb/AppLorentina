@@ -5,8 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -17,20 +19,22 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun ProduccionAdmin() {
+fun ProduccionAdmin(
+    onBackClick: () -> Unit = {},
+    navTo: (String) -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // 🟩 Barra superior gris con imagen
+        // 🩶 Barra superior gris con imagen y botón de volver
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -38,8 +42,22 @@ fun ProduccionAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = Color.White,
+                    modifier = Modifier.size(35.dp)
+                )
+            }
+
             Image(
-                painter = painterResource(id = R.drawable.lorenita), // tu logo
+                painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
                 modifier = Modifier
                     .height(180.dp)
@@ -78,50 +96,29 @@ fun ProduccionAdmin() {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Cabecera tabla
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("REF.", fontWeight = FontWeight.Bold)
-            Text("COLOR", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         // 🔹 Lista de productos
+        val referencias = listOf("1063", "1073", "1093")
+        val colores = listOf("COÑAC", "BLANCO", "NEGRO")
+        val imagenes = listOf(R.drawable.zapato1, R.drawable.zapato2, R.drawable.zapato3)
+
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp)
         ) {
-            items(3) { index ->
+            items(referencias.indices.toList()) { index ->
                 ProduccionItem(
-                    referencia = when (index) {
-                        0 -> "1063"
-                        1 -> "1073"
-                        else -> "1093"
-                    },
-                    colorZapato = when (index) {
-                        0 -> "COÑAC"
-                        1 -> "BLANCO"
-                        else -> "NEGRO"
-                    },
-                    imagenId = when (index) {
-                        0 -> R.drawable.zapato1
-                        1 -> R.drawable.zapato2
-                        else -> R.drawable.zapato3
-                    }
+                    referencia = referencias[index],
+                    colorZapato = colores[index],
+                    imagenId = imagenes[index]
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
 
-        // 🔹 Botón inferior
+        // 🔹 Botón inferior — redirige a AgregarTareaScreenAdmin
         Button(
-            onClick = { /* Acción futura */ },
+            onClick = { navTo(Screen.AgregarTareaAdmin.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
@@ -148,7 +145,6 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
     var expandedEstado by remember { mutableStateOf(false) }
     var estadoSeleccionado by remember { mutableStateOf("ESTADO") }
 
-    // Lista de estados del proceso
     val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla")
 
     Surface(
@@ -261,4 +257,3 @@ fun ProduccionPreview() {
         ProduccionAdmin()
     }
 }
-

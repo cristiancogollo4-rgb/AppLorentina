@@ -25,7 +25,7 @@ import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 @Composable
 fun HomeAdmin(
     onLogoutClick: () -> Unit = {},
-    navTo: (String) -> Unit = {} // 👈 Nuevo parámetro para navegar
+    navTo: (String) -> Unit = {}
 ) {
     var userName by remember { mutableStateOf("Angélica") }
 
@@ -35,7 +35,7 @@ fun HomeAdmin(
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🟩 Barra superior gris con logo y botón atrás
+        // 🟩 Barra superior gris con logo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -43,24 +43,20 @@ fun HomeAdmin(
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 🔙 Botón de cierre de sesión
-            Box(
+            IconButton(
+                onClick = onLogoutClick,
                 modifier = Modifier
-                    .fillMaxWidth()
                     .align(Alignment.CenterStart)
                     .padding(start = 8.dp)
             ) {
-                IconButton(onClick = onLogoutClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Cerrar Sesión",
-                        tint = Color.White,
-                        modifier = Modifier.size(35.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Cerrar Sesión",
+                    tint = Color.White,
+                    modifier = Modifier.size(35.dp)
+                )
             }
 
-            // 🖼️ Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -72,24 +68,20 @@ fun HomeAdmin(
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        // 🟤 Texto ADMINISTRADOR
         Text(
             text = "ROL ADMINISTRADOR",
             color = Color.Black,
             fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 🟠 Saludo dinámico
         Text(
             text = "¡HOLA, ${userName.uppercase()}!",
             color = Color.Black,
             fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold,
-            textAlign = TextAlign.Center
+            fontWeight = FontWeight.ExtraBold
         )
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -104,10 +96,10 @@ fun HomeAdmin(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 HomeCardButtom("PRODUCCIÓN", R.drawable.ic_group, 90.dp) {
-                    navTo(Screen.AdminProduccion.route)
+                    navTo(Screen.ProduccionAdmin.route)
                 }
                 HomeCardButtom("CLIENTES", R.drawable.ic_inventory_2, 90.dp) {
-                    navTo(Screen.AdminClientes.route)
+                    navTo(Screen.ClientesAdmin.route)
                 }
             }
 
@@ -118,19 +110,19 @@ fun HomeAdmin(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 HomeCardButtom("INVENTARIO", R.drawable.ic_shopping_bag, 90.dp) {
-                    navTo(Screen.AdminInventario.route)
+                    navTo(Screen.InventarioAdmin.route)
                 }
                 HomeCardButtom("VENTAS", R.drawable.ic_bar_chart, 90.dp) {
-                    navTo(Screen.AdminVentas.route)
+                    navTo(Screen.EstadisticasAdmin.route)
                 }
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // 🟩 Botón inferior principal
+        // 🟩 Botón inferior directo a Producción
         Button(
-            onClick = { navTo(Screen.AdminProduccion.route) },
+            onClick = { navTo(Screen.ProduccionAdmin.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier
@@ -159,13 +151,13 @@ fun HomeAdmin(
     }
 }
 
-// 🟦 Tarjeta reutilizable para los botones del Home
+// 🔘 Tarjeta genérica
 @Composable
 fun HomeCardButtom(
     text: String,
     iconId: Int,
     iconSize: Dp,
-    onClick: () -> Unit // 👈 Se agregó el callback
+    onClick: () -> Unit
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -174,7 +166,7 @@ fun HomeCardButtom(
         modifier = Modifier
             .width(165.dp)
             .height(145.dp)
-            .clickable { onClick() } // 👈 Hace que sea interactivo
+            .clickable { onClick() }
     ) {
         Column(
             modifier = Modifier
