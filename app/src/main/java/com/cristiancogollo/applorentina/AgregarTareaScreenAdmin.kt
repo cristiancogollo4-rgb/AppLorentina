@@ -23,7 +23,10 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun AgregarTareaScreenAdmin() {
+fun AgregarTareaScreenAdmin(
+    onBackClick: () -> Unit = {},
+    navTo: (String) -> Unit = {}
+) {
     var referencia by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
@@ -44,7 +47,7 @@ fun AgregarTareaScreenAdmin() {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🩶 Barra superior gris
+        // 🩶 Barra superior gris con flecha de volver
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -52,6 +55,20 @@ fun AgregarTareaScreenAdmin() {
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Volver",
+                    tint = Color.White,
+                    modifier = Modifier.size(35.dp)
+                )
+            }
+
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -223,9 +240,9 @@ fun AgregarTareaScreenAdmin() {
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        // 🩶 Botón ENVIAR
+        // 🩶 Botón ENVIAR → redirige al Inventario
         Button(
-            onClick = { /* Acción futura */ },
+            onClick = { navTo(Screen.InventarioAdmin.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
