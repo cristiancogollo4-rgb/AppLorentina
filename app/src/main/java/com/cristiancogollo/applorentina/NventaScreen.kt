@@ -66,17 +66,63 @@ fun NventaDialogScreen(
             Text("Cliente Asociado", fontWeight = FontWeight.SemiBold, color = ColorGrisTexto.copy(alpha = 0.8f), modifier = Modifier.align(Alignment.Start))
 
             // Campo de búsqueda
-            InputFieldWithIcon(
-                value = uiState.clienteBuscado,
-                onValueChange = viewModel::onClienteBuscadoChange,
-                placeholder = "Cédula o Nombre del Cliente",
-                icon = Icons.Outlined.Person,
-                trailingIcon = {
-                    IconButton(onClick = { viewModel.buscarClientePorNombre(uiState.clienteBuscado) }) {
-                        Icon(Icons.Default.Search, contentDescription = "Buscar", tint = ColorVerdeOscuro)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                InputFieldWithIcon(
+                    value = uiState.clienteBuscado,
+                    onValueChange = viewModel::onClienteBuscadoChange, // Esto activa la búsqueda
+                    placeholder = "Cédula o Nombre del Cliente",
+                    icon = Icons.Outlined.Person,
+                    // Si ya hay un cliente seleccionado, hacemos el campo de solo lectura
+                    readOnly = uiState.clienteSeleccionado != null,
+                    trailingIcon = {
+                        Row {
+                            // ⚪ Botón de Limpiar Búsqueda/Selección
+                            if (uiState.clienteSeleccionado != null || uiState.clienteBuscado.isNotBlank()) {
+                                IconButton(onClick = { viewModel.seleccionarCliente(null) }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Limpiar", tint = ColorGrisTexto)
+                                }
+                            }
+                            // 🔍 Botón de Búsqueda Explícita
+                            IconButton(
+                                onClick = { viewModel.buscarClientePorNombre(uiState.clienteBuscado) },
+                                enabled = uiState.clienteSeleccionado == null // Solo activo si no hay un cliente fijo
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = ColorVerdeOscuro)
+                            }
+                        }
+                    }
+                )
+
+                // 2. DropdownMenu para sugerencias de autocompletado
+                DropdownMenu(
+                    expanded = uiState.isDropdownExpanded,
+                    onDismissRequest = { viewModel.dismissDropdown() },
+                    // Ajusta el ancho del menú al ancho del Box que contiene el InputField
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (uiState.isClientesLoading) {
+                        DropdownMenuItem(
+                            text = { Text("Cargando clientes...") },
+                            onClick = { /* No-op */ }
+                        )
+                    } else if (uiState.clientesFiltrados.isEmpty() && uiState.clienteBuscado.isNotBlank()) {
+                        DropdownMenuItem(
+                            text = { Text("No se encontraron coincidencias") },
+                            onClick = { /* No-op */ }
+                        )
+                    } else {
+                        // Muestra la lista de clientes filtrados
+                        uiState.clientesFiltrados.forEach { cliente ->
+                            DropdownMenuItem(
+                                text = { Text("${cliente.nombreApellido} (${cliente.cedula})", color = ColorGrisTexto) },
+                                onClick = {
+                                    viewModel.seleccionarCliente(cliente) // Fija la selección
+                                }
+                            )
+                        }
                     }
                 }
-            )
+            }
 
             // Resultado/Mensaje de cliente
             if (uiState.clienteSeleccionado != null) {
