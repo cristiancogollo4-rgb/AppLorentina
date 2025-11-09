@@ -1,7 +1,6 @@
 package com.cristiancogollo.applorentina
 
 
-import Cliente
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -20,25 +19,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
+import androidx.navigation.NavController
+import java.net.URLEncoder
 
 @Composable
 fun BuscarClienteScreen(
+    navController: NavController, // 👈 Recibimos el navController
     onBackClick: () -> Unit,
     onAddClientClick: () -> Unit,
-    // Obtenemos una instancia del ViewModel. ViewModelProvider.Factory no es necesario aquí
-    // a menos que necesites pasar dependencias complejas.
     viewModel: ClientesViewModel = viewModel()
 ) {
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
     val colorGrisTexto = Color(0xFF5C5C5C)
 
-    // Recopilamos el estado del ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
     Column(
@@ -57,7 +54,7 @@ fun BuscarClienteScreen(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Encabezado verde (sin cambios)
+                    // 🔹 Encabezado
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -68,32 +65,52 @@ fun BuscarClienteScreen(
                             .padding(vertical = 15.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Box(modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                        ) {
                             IconButton(onClick = onBackClick) {
-                                Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(35.dp))
+                                Icon(
+                                    Icons.Default.ArrowBack,
+                                    contentDescription = "Volver",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(35.dp)
+                                )
                             }
                         }
                         Image(
                             painter = painterResource(id = R.drawable.lorenita),
                             contentDescription = "Logo Lorentina",
-                            modifier = Modifier.fillMaxWidth(0.6f).height(200.dp),
+                            modifier = Modifier
+                                .fillMaxWidth(0.6f)
+                                .height(200.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    Text("BUSCAR CLIENTE", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colorGrisTexto)
+                    Text(
+                        "BUSCAR CLIENTE",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorGrisTexto
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Barra de búsqueda (ahora conectada al ViewModel)
+                    // 🔹 Barra de búsqueda
                     OutlinedTextField(
                         value = uiState.searchQuery,
-                        onValueChange = { viewModel.updateSearchQuery(it) }, // 👈 Llama al ViewModel
+                        onValueChange = { viewModel.updateSearchQuery(it) },
                         placeholder = { Text("BUSCAR CLIENTE....", color = Color.Gray.copy(alpha = 0.7f)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.Gray.copy(alpha = 0.7f)) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color.Gray.copy(alpha = 0.7f))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                         shape = RoundedCornerShape(20.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorVerdeClaro,
@@ -104,15 +121,17 @@ fun BuscarClienteScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Filtros (ahora conectados al ViewModel)
+                    // 🔹 Filtros
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         FilterButton(
                             text = "NOMBRE",
-                            isSelected = uiState.filterType == FilterType.NOMBRE, // 👈 Estado desde el ViewModel
-                            onClick = { viewModel.updateFilterType(FilterType.NOMBRE) }, // 👈 Acción del ViewModel
+                            isSelected = uiState.filterType == FilterType.NOMBRE,
+                            onClick = { viewModel.updateFilterType(FilterType.NOMBRE) },
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -133,20 +152,34 @@ fun BuscarClienteScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de clientes (ahora usa los datos del ViewModel y maneja estados)
-                    Box(modifier = Modifier.weight(1f).padding(horizontal = 24.dp)) {
-                        if (uiState.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        } else if (uiState.errorMessage != null) {
-                            Text(
+                    // 🔹 Lista de clientes
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        when {
+                            uiState.isLoading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            uiState.errorMessage != null -> Text(
                                 text = uiState.errorMessage!!,
                                 color = Color.Red,
                                 modifier = Modifier.align(Alignment.Center)
                             )
-                        } else {
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(uiState.filteredClientes) { cliente -> // 👈 Usa la lista filtrada
-                                    ClienteCard(cliente = cliente) // 👈 Pasa el objeto completo
+                            else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                items(uiState.filteredClientes) { cliente ->
+                                    ClienteCard(cliente = cliente, onVerDetalles = {
+                                        // ✅ Construimos la ruta con todos los datos del cliente
+                                        // Usamos URLEncoder para evitar problemas si algún dato tiene caracteres especiales como espacios o "/"
+                                        val nombreEncoded = URLEncoder.encode(cliente.nombreApellido ?: "Sin Nombre", "UTF-8")
+                                        val cedulaEncoded = URLEncoder.encode(if (cliente.cedula == 0L) "" else cliente.cedula.toString(), "UTF-8")
+                                        val telefonoEncoded = URLEncoder.encode(if (cliente.telefono == 0L) "" else cliente.telefono.toString(), "UTF-8")
+                                        val correoEncoded = URLEncoder.encode(cliente.correo ?: "", "UTF-8") // <-- MANEJO DE NULOS
+                                        val departamentoEncoded = URLEncoder.encode(cliente.departamento ?: "", "UTF-8")
+                                        val municipioEncoded = URLEncoder.encode(cliente.municipio ?: "", "UTF-8")
+                                        val tipoClienteEncoded = URLEncoder.encode(cliente.tipoCliente.toString(), "UTF-8")
+
+                                        navController.navigate("detalle_cliente_screen/$nombreEncoded/$cedulaEncoded/$telefonoEncoded/$correoEncoded/$departamentoEncoded/$municipioEncoded/$tipoClienteEncoded")
+                                    })
                                 }
                             }
                         }
@@ -155,7 +188,7 @@ fun BuscarClienteScreen(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
 
-                // Botón flotante (sin cambios)
+                // 🔹 Botón flotante
                 FloatingActionButton(
                     onClick = onAddClientClick,
                     containerColor = colorVerdeOscuro,
@@ -166,9 +199,15 @@ fun BuscarClienteScreen(
                         .padding(end = 24.dp, bottom = 24.dp)
                         .size(90.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Add, contentDescription = "Agregar cliente", modifier = Modifier.size(60.dp))
-                        Text("AGREGAR CLIENTE", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.White, lineHeight = 10.sp)
+                        Text(
+                            "AGREGAR CLIENTE",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            lineHeight = 10.sp
+                        )
                     }
                 }
             }
@@ -176,8 +215,6 @@ fun BuscarClienteScreen(
     }
 }
 
-
-// MODIFICACIÓN: FilterButton ahora necesita un onClick
 @Composable
 fun FilterButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val containerColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
@@ -185,7 +222,7 @@ fun FilterButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifie
     val borderColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
 
     Button(
-        onClick = onClick, // 👈 Usa el onClick que le pasan
+        onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
         shape = RoundedCornerShape(10.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(width = 1.dp, brush = androidx.compose.ui.graphics.SolidColor(borderColor)),
@@ -196,42 +233,39 @@ fun FilterButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifie
     }
 }
 
-// MODIFICACIÓN: ClienteCard ahora recibe un objeto Cliente
 @Composable
-fun ClienteCard(cliente: Cliente) { // 👈 Recibe el objeto completo
+fun ClienteCard(cliente: Cliente, onVerDetalles: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(10.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8))
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(cliente.nombre, fontWeight = FontWeight.Bold, color = Color(0xFF5C5C5C)) // 👈 Usa los datos del objeto
-                Text(cliente.cedula.toString(), fontSize = 12.sp, color = Color.Gray)
+                Text(cliente.nombreApellido, fontWeight = FontWeight.Bold, color = Color(0xFF5C5C5C))
+                Text(
+                    if (cliente.tipoCliente) "Cliente Detal" else "Cliente por Mayor",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
             }
             Button(
-                onClick = { /* TODO: Navegar a detalles del cliente */ },
+                onClick = onVerDetalles,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB5CC00), contentColor = Color.White),
                 shape = RoundedCornerShape(10.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text("VER DETALLES", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
-        }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun BuscarClientePreview() {
-    AppLorentinaTheme {
-        Surface(color = Color(0xFFEFEFEF)) {
-            BuscarClienteScreen(onBackClick = {}, onAddClientClick = {})
         }
     }
 }
