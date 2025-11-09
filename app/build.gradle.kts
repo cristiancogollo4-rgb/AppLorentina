@@ -72,6 +72,8 @@ dependencies {
     // ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ PRESENTE:
     implementation("androidx.compose.material:material-icons-extended")
 
+
+    implementation("io.coil-kt:coil-compose:2.6.0")
     //Firebase
     //auth
 
