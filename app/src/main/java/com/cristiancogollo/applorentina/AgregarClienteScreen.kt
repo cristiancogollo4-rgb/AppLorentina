@@ -143,7 +143,7 @@ fun AgregarClienteDialogContent(
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 🌟 CAMBIO 1: Campo Cédula con validación de números
+            // Campo Cédula con validación de números
             InputFieldWithIcon(
                 value = formState.cedula,
                 onValueChange = { newValue ->
@@ -158,7 +158,7 @@ fun AgregarClienteDialogContent(
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 🌟 CAMBIO 2: Campo Teléfono con validación de números
+            //  Campo Teléfono con validación de números
             InputFieldWithIcon(
                 value = formState.telefono,
                 onValueChange = { newValue ->
@@ -306,7 +306,7 @@ fun DropdownSelector(
 }
 
 // =================================================================
-// COMPONENTES REUTILIZABLES (CON CAMBIO EN InputFieldWithIcon)
+// COMPONENTES REUTILIZABLES
 // =================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -316,7 +316,7 @@ fun InputFieldWithIcon(
     onValueChange: (String) -> Unit,
     placeholder: String,
     icon: ImageVector,
-    // 🌟 CAMBIO 3: Añadir keyboardOptions como parámetro
+    // Añadir keyboardOptions como parámetro
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default
 ) {
     OutlinedTextField(
@@ -331,7 +331,7 @@ fun InputFieldWithIcon(
                 modifier = Modifier.size(24.dp)
             )
         },
-        // 🌟 CAMBIO 4: Aplicar las keyboardOptions
+        //  keyboardOptions
         keyboardOptions = keyboardOptions,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -345,4 +345,3 @@ fun InputFieldWithIcon(
     )
 }
 
-// ... (El resto de los componentes como DropdownSelector y ActionButton no necesitan cambios)
