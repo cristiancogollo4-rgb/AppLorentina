@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.foundation.layout)
     implementation(libs.androidx.compose.ui.ui)
     implementation(libs.firebase.firestore)
+    implementation(libs.androidx.ui.text)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

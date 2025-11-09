@@ -88,7 +88,7 @@ class AgregarClienteViewModel(private val context: Context) : ViewModel() {
     fun clearMessage() = _uiState.update { it.copy(message = null) }
     fun resetSaveState() = _uiState.update { it.copy(isSaveSuccessful = false) }
 
-    fun saveCliente() {
+    fun saveCliente(onSuccess: () -> Unit) {
         val form = _uiState.value.formState
 
         if (!isFormValid.value) {
@@ -127,6 +127,7 @@ class AgregarClienteViewModel(private val context: Context) : ViewModel() {
                         isSaveSuccessful = true
                     )
                 }
+                onSuccess()
                 Log.d("AgregarClienteVM", "Cliente guardado exitosamente.")
             } catch (e: Exception) {
                 Log.e("AgregarClienteVM", "Error al guardar cliente", e)

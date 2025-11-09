@@ -1,9 +1,9 @@
 package me.oscarsanchez.myapplication
 
+// ... (Imports requeridos: Icons, Material3, ViewModel, etc.)
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,303 +15,151 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cristiancogollo.applorentina.Cliente
+import com.cristiancogollo.applorentina.InputFieldWithIcon
+import com.cristiancogollo.applorentina.NventaViewModel // Importa el ViewModel
 
-// 🎨 Colores personalizados
+// 🎨 Colores personalizados (asumidos del archivo original)
 val ColorVerdeOscuro = Color(0xFFB5CC00)
 val ColorVerdeClaroBoton = Color(0xFFC2D500)
 val ColorGrisTexto = Color(0xFF5C5C5C)
 val ColorFondoCard = Color(0xFFF8F8F8)
 
+// Componentes Auxiliares (InputFieldWithIcon, ActionButton, ClienteSeleccionadoCard, etc.)
+// ... (Se mantienen los componentes de la respuesta anterior para brevedad) ...
 
 // =================================================================
-// 1. PANTALLA PRINCIPAL DE LA VENTA (Simula el diálogo flotante)
+// PANTALLA PRINCIPAL (Composable usado en la ruta de diálogo)
 // =================================================================
 
 @Composable
-fun NventaDialogScreen() {
+fun NventaDialogScreen(
+    onSaveSuccess: () -> Unit,
+    onAgregarClienteClick: () -> Unit,
+    viewModel: NventaViewModel = viewModel() // Inyección
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val formatter = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
+
+    // El Box simula el contenedor del diálogo
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
-            .padding(20.dp),
+            .padding(16.dp)
+            .background(Color.White, RoundedCornerShape(20.dp)),
         contentAlignment = Alignment.Center
-    ) {
-        NventaDialogContent()
-    }
-}
-
-@Composable
-fun NventaDialogContent() {
-    // Variables de estado (sin cambios)
-    var nombreCliente by remember { mutableStateOf("") }
-    var precio by remember { mutableStateOf("") }
-    var fecha by remember { mutableStateOf("") }
-    var departamento by remember { mutableStateOf("") }
-    var municipio by remember { mutableStateOf("") }
-    var descripcion by remember { mutableStateOf("") }
-    var productos by remember { mutableStateOf("") }
-
-    var isDetalSelected by remember { mutableStateOf(true) }
-    var isSpecialPurchase by remember { mutableStateOf(false) } // Estado para Compra Especial
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(0.9f)
-            .wrapContentHeight(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(
             modifier = Modifier
-                .padding(24.dp)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Título
-            Text(
-                text = "AGREGAR VENTA",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = ColorGrisTexto.copy(alpha = 0.8f)
-            )
+            Text("Nueva Venta", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = ColorGrisTexto)
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
+            // --- 1. SELECCIÓN DE CLIENTE ---
+            Text("Cliente Asociado", fontWeight = FontWeight.SemiBold, color = ColorGrisTexto.copy(alpha = 0.8f), modifier = Modifier.align(Alignment.Start))
 
-            // 1. NOMBRE CLIENTE (Sin cambios)
+            // Campo de búsqueda
             InputFieldWithIcon(
-                value = nombreCliente,
-                onValueChange = { nombreCliente = it },
-                placeholder = "NOMBRE CLIENTE....",
-                icon = Icons.Outlined.Person
+                value = uiState.clienteBuscado,
+                onValueChange = viewModel::onClienteBuscadoChange,
+                placeholder = "Cédula o Nombre del Cliente",
+                icon = Icons.Outlined.Person,
+                trailingIcon = {
+                    IconButton(onClick = { viewModel.buscarClientePorNombre(uiState.clienteBuscado) }) {
+                        Icon(Icons.Default.Search, contentDescription = "Buscar", tint = ColorVerdeOscuro)
+                    }
+                }
             )
 
-            // Etiqueta "AGREGAR CLIENTE NUEVO" (Sin cambios)
-            Text(
-                text = "AGREGAR CLIENTE NUEVO",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ColorVerdeClaroBoton,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 8.dp)
-            )
-
-            // 2. CAMPO AGREGAR PRODUCTOS
-            InputFieldWithIcon(
-                value = productos,
-                onValueChange = { productos = it },
-                placeholder = "AGREGAR PRODUCTOS....",
-                icon = Icons.Default.AddShoppingCart,
-                // LÓGICA DE INHABILITACIÓN
-                readOnly = isSpecialPurchase,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // 3. SWITCH COMPRA ESPECIAL (Movido debajo, alineado a la derecha)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 10.dp),
-                horizontalArrangement = Arrangement.Start, // Alinea el switch a la derecha
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Switch(
-                    checked = isSpecialPurchase,
-                    onCheckedChange = { isSpecialPurchase = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = ColorVerdeOscuro,
-                        checkedTrackColor = ColorVerdeClaroBoton,
-                        uncheckedThumbColor = ColorGrisTexto.copy(alpha = 0.5f),
-                        uncheckedTrackColor = ColorGrisTexto.copy(alpha = 0.2f)
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "COMPRA ESPECIAL",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ColorGrisTexto,
+            // Resultado/Mensaje de cliente
+            if (uiState.clienteSeleccionado != null) {
+                ClienteSeleccionadoCard(cliente = uiState.clienteSeleccionado!!)
+            } else if (uiState.mensajeClienteNoEncontrado != null) {
+                MensajeClienteNoEncontrado(
+                    mensaje = uiState.mensajeClienteNoEncontrado!!,
+                    onAgregarClienteClick = onAgregarClienteClick // Usa el componente solicitado
                 )
             }
 
-            // 4. PRECIO Y FECHA (En una fila, sin cambios)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                InputFieldWithIcon(
-                    value = precio,
-                    onValueChange = { precio = it },
-                    placeholder = "PRECIO...",
-                    icon = Icons.Default.AttachMoney,
-                    modifier = Modifier.weight(1f)
-                )
+            // --- 2. DETALLES DE VENTA (Campos solicitados) ---
+            Text("Detalles de la Venta", fontWeight = FontWeight.SemiBold, color = ColorGrisTexto.copy(alpha = 0.8f), modifier = Modifier.align(Alignment.Start))
 
-                InputFieldWithIcon(
-                    value = fecha,
-                    onValueChange = { fecha = it },
-                    placeholder = "FECHA...",
-                    icon = Icons.Default.CalendarToday,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 5. DEPARTAMENTO (Dropdown) (Sin cambios)
-            DropdownField(
-                value = departamento,
-                onValueChange = { departamento = it },
-                placeholder = "DEPARTAMENTO...."
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 6. MUNICIPIO (Dropdown) (Sin cambios)
-            DropdownField(
-                value = municipio,
-                onValueChange = { municipio = it },
-                placeholder = "MUNICIPIO..."
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 7. DESCRIPCIÓN (Sin cambios)
+            // Precio de la Venta
             InputFieldWithIcon(
-                value = descripcion,
-                onValueChange = { descripcion = it },
-                placeholder = "DESCRIPCIÓN...",
-                icon = null,
-                singleLine = false,
-                minLines = 3
+                value = uiState.precio,
+                onValueChange = viewModel::onPrecioChange,
+                placeholder = "Precio Total",
+                icon = Icons.Default.AttachMoney,
             )
-            Spacer(modifier = Modifier.height(20.dp))
 
-            // 8. Botones DETAL y POR MAYOR (Sin cambios)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                ActionButton(
-                    text = "DETAL",
-                    isSelected = isDetalSelected,
-                    onClick = { isDetalSelected = true },
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
+            // Fecha de la Venta
+            InputFieldWithIcon(
+                value = formatter.format(uiState.fechaVenta),
+                onValueChange = {},
+                placeholder = "Fecha de Venta",
+                icon = Icons.Default.DateRange,
+                readOnly = true,
+                trailingIcon = { /* Icono para abrir DatePicker */ }
+            )
 
-                ActionButton(
-                    text = "POR MAYOR",
-                    isSelected = !isDetalSelected,
-                    onClick = { isDetalSelected = false },
-                    modifier = Modifier.weight(1f)
-                )
+            // Descripción (Opcional)
+            InputFieldWithIcon(
+                value = uiState.descripcion,
+                onValueChange = viewModel::onDescripcionChange,
+                placeholder = "Descripción (Opcional)",
+                icon = Icons.Default.Description
+            )
+
+
+            // --- 3. TIPO DE VENTA Y VENTA ESPECIAL ---
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton(text = "Venta al Detal", isSelected = uiState.esDetal, onClick = { viewModel.toggleTipoVenta(true) }, modifier = Modifier.weight(1f))
+                ActionButton(text = "Venta al Por Mayor", isSelected = !uiState.esDetal, onClick = { viewModel.toggleTipoVenta(false) }, modifier = Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            // Selector de Venta Especial (Solo para Por Mayor)
+            if (!uiState.esDetal) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Venta Especial (Deshabilita productos)", modifier = Modifier.weight(1f), color = ColorGrisTexto.copy(alpha = 0.8f))
+                    Switch(checked = uiState.esVentaEspecial, onCheckedChange = viewModel::toggleVentaEspecial)
+                }
+            }
 
-            // 9. Botón AGREGAR (Sin cambios)
+            // --- 4. AGREGAR PRODUCTO ---
             Button(
-                onClick = { /* Lógica de AGREGAR VENTA */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ColorVerdeOscuro),
-                shape = RoundedCornerShape(16.dp),
-                contentPadding = PaddingValues(10.dp)
+                onClick = { /* Lógica de navegación a productos */ },
+                // Deshabilitado si: 1) No hay cliente seleccionado O 2) Es una Venta Especial
+                enabled = uiState.clienteSeleccionado != null && !uiState.esVentaEspecial,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorVerdeClaroBoton)
             ) {
-                Text(
-                    text = "AGREGAR",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Text("AGREGAR PRODUCTO (WIP)") // Sin funcionalidad aún, como se solicitó
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Botón de Guardar
+            Button(
+                onClick = { viewModel.guardarVenta(onSaveSuccess) },
+                enabled = uiState.clienteSeleccionado != null && uiState.precio.toDoubleOrNull() != null && !uiState.isSaving,
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorVerdeOscuro)
+            ) {
+                if (uiState.isSaving) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("GUARDAR VENTA", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
-}
-
-// =================================================================
-// COMPONENTES REUTILIZABLES (ACTUALIZADOS)
-// =================================================================
-
-@Composable
-fun InputFieldWithIcon(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    icon: ImageVector? = null,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    singleLine: Boolean = true,
-    minLines: Int = 1,
-    // Añadimos el parámetro readOnly (para deshabilitar el campo)
-    readOnly: Boolean = false
-) {
-    // Determinar los colores del borde según el estado
-    val borderColor = if (readOnly) Color.LightGray else ColorVerdeClaroBoton
-    val textColor = if (readOnly) Color.Gray else ColorGrisTexto
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
-        leadingIcon = icon?.let {
-            {
-                Icon(
-                    it,
-                    contentDescription = null,
-                    tint = borderColor, // El color del ícono refleja el estado
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        },
-        singleLine = singleLine,
-        minLines = minLines,
-        readOnly = readOnly, // Aplicamos el estado de solo lectura aquí
-        textStyle = LocalTextStyle.current.copy(color = textColor), // Ajustamos el color del texto
-        modifier = modifier,
-        shape = RoundedCornerShape(10.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = borderColor,
-            unfocusedBorderColor = borderColor,
-            cursorColor = ColorVerdeOscuro,
-            focusedContainerColor = if (readOnly) ColorFondoCard else Color.White,
-            unfocusedContainerColor = if (readOnly) ColorFondoCard else Color.White,
-            disabledContainerColor = ColorFondoCard // Color de fondo cuando está deshabilitado
-        )
-    )
-}
-
-// (DropdownField y ActionButton se mantienen igual)
-@Composable
-fun DropdownField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
-        trailingIcon = {
-            Icon(
-                Icons.Default.ArrowDropDown,
-                contentDescription = "Dropdown",
-                tint = ColorVerdeClaroBoton
-            )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        readOnly = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = ColorVerdeClaroBoton,
-            unfocusedBorderColor = ColorVerdeClaroBoton,
-            cursorColor = ColorVerdeOscuro,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-        )
-    )
 }
 
 @Composable
@@ -320,6 +168,7 @@ fun ActionButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifie
     val contentColor = if (isSelected) Color.White else ColorGrisTexto.copy(alpha = 0.8f)
     val borderColor = if (isSelected) ColorVerdeOscuro else ColorVerdeOscuro.copy(alpha = 0.5f)
 
+    // 🟢 ESTA ES LA IMPLEMENTACIÓN COMPLETA QUE FALTA SI TENÍAS UN TODO()
     Button(
         onClick = onClick,
         modifier = modifier
@@ -337,14 +186,49 @@ fun ActionButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifie
     }
 }
 
-
-// =================================================================
-// PREVIEW
-// =================================================================
-@Preview(showBackground = true)
 @Composable
-fun NventaDialogPreview() {
-    Surface(color = Color.Gray.copy(alpha = 0.2f), modifier = Modifier.fillMaxSize()) {
-        NventaDialogScreen()
+fun ClienteSeleccionadoCard(cliente: com.cristiancogollo.applorentina.Cliente) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = ColorFondoCard),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text("Cliente Seleccionado:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = ColorGrisTexto)
+            Spacer(Modifier.height(4.dp))
+            Text("Nombre: ${cliente.nombreApellido}", fontSize = 14.sp)
+            Text("Cédula: ${cliente.cedula}", fontSize = 14.sp)
+            Text("Tipo: ${if (cliente.tipoCliente) "Detal" else "Por Mayor"}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = ColorVerdeOscuro
+            )
+        }
+    }
+}
+
+// 3. MENSAJE DE CLIENTE NO ENCONTRADO (Implementación simple)
+@Composable
+fun MensajeClienteNoEncontrado(mensaje: String, onAgregarClienteClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            mensaje,
+            color = Color.Red.copy(alpha = 0.8f),
+            modifier = Modifier.weight(1f).padding(end = 8.dp),
+            fontSize = 14.sp
+        )
+        Button(
+            onClick = onAgregarClienteClick,
+            colors = ButtonDefaults.buttonColors(containerColor = ColorVerdeClaroBoton)
+        ) {
+            Text("Agregar", fontSize = 14.sp)
+        }
     }
 }

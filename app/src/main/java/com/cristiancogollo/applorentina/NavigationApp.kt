@@ -55,7 +55,8 @@ fun NavigationApp() {
                         UserRole.ADMINISTRADOR -> navController.navigate(Screen.HomeAdmin.route)
                     }
                 },
-                onForgotPasswordClick = { }
+                // Corrección de tipo si onForgotPasswordClick espera Unit
+                onForgotPasswordClick = { /* No hace nada */ }
             )
         }
 
@@ -63,46 +64,77 @@ fun NavigationApp() {
         composable(Screen.HomeVendedor.route) {
             HomeScreen(
                 navController = navController,
-                onLogoutClick = { navController.popBackStack() }
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onLogoutClick = { navController.popBackStack() } as () -> Unit
             )
         }
 
         // 🟨 HOME ADMIN
         composable(Screen.HomeAdmin.route) {
             HomeAdmin(
-                onLogoutClick = { navController.popBackStack() },
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onLogoutClick = { navController.popBackStack() } as () -> Unit,
                 navTo = { route -> navController.navigate(route) }
             )
         }
 
         // 🟧 SUBPANTALLAS DEL VENDEDOR
         composable(Screen.Estadisticas.route) {
-            EstadisticasScreen(onBackClick = { navController.popBackStack() })
+            EstadisticasScreen(
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onBackClick = { navController.popBackStack() } as () -> Unit
+            )
         }
 
         composable(Screen.BuscarCliente.route) {
             BuscarClienteScreen(
                 navController = navController,
-                onBackClick = { navController.popBackStack() },
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onBackClick = { navController.popBackStack() } as () -> Unit,
                 onAddClientClick = { navController.navigate(Screen.AgregarCliente.route) }
             )
         }
 
-        // 🔹 Pantalla de DetalleCliente
-
-
-        dialog(Screen.AgregarCliente.route) { AgregarClienteScreen() }
+        // 🟢 DIÁLOGO: AgregarCliente
+        // CRASH FIX 1: Añadir el onBackClick para cerrar el diálogo
+        dialog(Screen.AgregarCliente.route) {
+            // ASUME: AgregarClienteScreen(onBackClick: () -> Unit)
+            AgregarClienteScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
 
         composable(Screen.Produccion.route) {
-            ProduccionScreen(onBackClick = { navController.popBackStack() })
+            ProduccionScreen(
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onBackClick = { navController.popBackStack() } as () -> Unit
+            )
         }
 
         composable(Screen.Stock.route) {
-            StockScreen(onBackClick = { navController.popBackStack() })
+            StockScreen(
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onBackClick = { navController.popBackStack() } as () -> Unit
+            )
         }
 
-        dialog(Screen.Nventa.route) { NventaDialogScreen() }
-        // ...
+        // 🟢 DIÁLOGO: Nventa
+        dialog(Screen.Nventa.route) {
+
+            // CORRECCIÓN 2: Declaramos el tipo explícito para forzar () -> Unit
+            val onSaveSuccess: () -> Unit = {
+                navController.popBackStack(Screen.Hventas.route, inclusive = false)
+            }
+
+            val onAgregarClienteClick = { navController.navigate(Screen.AgregarCliente.route) }
+
+            NventaDialogScreen(
+                onSaveSuccess = onSaveSuccess,
+                onAgregarClienteClick = onAgregarClienteClick
+            )
+        }
+
+        // 🟢 DIÁLOGO: DetallesCliente
         dialog(
             route = Screen.DetallesCliente.route,
             arguments = listOf(
@@ -140,14 +172,16 @@ fun NavigationApp() {
 
         composable(Screen.Hventas.route) {
             HventasScreen(
-                onBackClick = { navController.popBackStack() },
+                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
+                onBackClick = { navController.popBackStack() } as () -> Unit,
                 onNewVentaClick = { navController.navigate(Screen.Nventa.route) }
             )
         }
 
-        // 🟥 ADMIN
+        // 🟥 ADMIN (Asumo que ProduccionAdmin, etc. son Composable que ya tienen las firmas correctas)
         composable(Screen.ProduccionAdmin.route) {
             ProduccionAdmin(
+                // Aquí el navigate no devuelve Boolean, por lo que es seguro.
                 onBackClick = { navController.navigate(Screen.HomeAdmin.route) },
                 navTo = { route -> navController.navigate(route) }
             )
@@ -173,4 +207,3 @@ fun NavigationApp() {
         }
     }
 }
-

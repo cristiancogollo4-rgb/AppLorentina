@@ -41,7 +41,8 @@ val ColorFondoCard = Color(0xFFF8F8F8)
 
 @Composable
 fun AgregarClienteScreen(
-    // CORRECTO
+
+    onBackClick: () -> Unit,
     viewModel: AgregarClienteViewModel = viewModel(factory = AgregarClienteViewModelFactory(LocalContext.current))
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -72,7 +73,9 @@ fun AgregarClienteScreen(
             isFormValid = isFormValid,
             onDetalSelect = { viewModel.setTipoCliente(true) },
             onMayorSelect = { viewModel.setTipoCliente(false) },
-            onAgregar = viewModel::saveCliente
+            onAgregar = {
+                viewModel.saveCliente(onSuccess = onBackClick)
+            }
         )
 
         uiState.message?.let { msg ->
@@ -317,7 +320,9 @@ fun InputFieldWithIcon(
     placeholder: String,
     icon: ImageVector,
     // Añadir keyboardOptions como parámetro
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    readOnly: Boolean = false,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     OutlinedTextField(
         value = value,
