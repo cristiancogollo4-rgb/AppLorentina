@@ -1,15 +1,18 @@
 package com.cristiancogollo.applorentina
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,15 +21,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel // 🌟 Importante para obtener el ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import android.util.Log
-import androidx.navigation.NavController // Import necesario si lo usas en la firma
-
+import me.oscarsanchez.myapplication.ActionButton
 
 // Definición de colores del proyecto
 val ColorVerdeOscuro = Color(0xFFB5CC00)
@@ -36,29 +36,20 @@ val ColorFondoCard = Color(0xFFF8F8F8)
 
 
 // =================================================================
-// PANTALLA PRINCIPAL (Conectada al ViewModel)
+// PANTALLA PRINCIPAL (Sin cambios aquí)
 // =================================================================
 
 @Composable
 fun AgregarClienteScreen(
-    // ⚠️ Si no usas navegación, puedes omitir NavController en la firma y el cuerpo
-    viewModel: ClienteViewModel = viewModel(factory = ClienteViewModelFactory(LocalContext.current))
+    // CORRECTO
+    viewModel: AgregarClienteViewModel = viewModel(factory = AgregarClienteViewModelFactory(LocalContext.current))
 ) {
     val coroutineScope = rememberCoroutineScope()
-
-    // Observa los estados del ViewModel
-    val formState by viewModel.formState.collectAsState()
-    val message by viewModel.message.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val isFormValid by viewModel.isFormValid.collectAsState()
+    val formState = uiState.formState
     val departamentos = viewModel.departamentos
     val municipios = viewModel.municipios
-
-    // Observa el estado de inicialización de Firebase
-    val firebaseState by viewModel.firebaseState.collectAsState()
-    // Determina si la UI debe estar en modo "Cargando/Inicializando"
-    val isDatabaseLoading = !firebaseState.isInitialized
-
-    // 🌟 ESTADO CLAVE: La validación del formulario del ViewModel
-    val isFormValid by viewModel.isFormValid.collectAsState()
 
     Box(
         modifier = Modifier
@@ -67,7 +58,6 @@ fun AgregarClienteScreen(
             .padding(20.dp),
         contentAlignment = Alignment.Center
     ) {
-        // 🌟 3. Pasa los estados y handlers al componente de contenido
         AgregarClienteDialogContent(
             formState = formState,
             departamentos = departamentos,
@@ -78,15 +68,14 @@ fun AgregarClienteScreen(
             onCorreoChange = viewModel::updateCorreo,
             onDepartamentoChange = viewModel::updateDepartamento,
             onMunicipioChange = viewModel::updateMunicipio,
-            isSaving = isDatabaseLoading,
-            isFormValid = isFormValid, // 🌟 MODIFICACIÓN 1: Pasar el estado de validez
+            isSaving = uiState.isLoading,
+            isFormValid = isFormValid,
             onDetalSelect = { viewModel.setTipoCliente(true) },
             onMayorSelect = { viewModel.setTipoCliente(false) },
-            onAgregar = viewModel::saveCliente // Llama a la lógica de guardado en Firestore
+            onAgregar = viewModel::saveCliente
         )
 
-        // Mostrar mensajes (Snackbar)
-        message?.let { msg ->
+        uiState.message?.let { msg ->
             Snackbar(
                 modifier = Modifier
                     .padding(16.dp)
@@ -94,19 +83,16 @@ fun AgregarClienteScreen(
             ) {
                 Text(msg)
             }
-            // Ocultar mensaje después de un tiempo y limpiarlo del ViewModel
             LaunchedEffect(msg) {
-                coroutineScope.launch {
-                    kotlinx.coroutines.delay(3000L)
-                    viewModel.clearMessage()
-                }
+                kotlinx.coroutines.delay(3000L)
+                viewModel.clearMessage()
             }
         }
     }
 }
 
 // =================================================================
-// CONTENIDO DEL DIÁLOGO (Modificado)
+// CONTENIDO DEL DIÁLOGO (CON CAMBIOS CLAVE)
 // =================================================================
 
 @Composable
@@ -124,7 +110,7 @@ fun AgregarClienteDialogContent(
     onMayorSelect: () -> Unit,
     onAgregar: () -> Unit,
     isSaving: Boolean,
-    isFormValid: Boolean // 🌟 MODIFICACIÓN 1: Recibe el estado de validez
+    isFormValid: Boolean
 ) {
     Card(
         modifier = Modifier
@@ -140,7 +126,6 @@ fun AgregarClienteDialogContent(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Título
             Text(
                 text = "AGREGAR CLIENTE",
                 fontSize = 18.sp,
@@ -150,46 +135,61 @@ fun AgregarClienteDialogContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Campos de entrada (conectados al estado)
             InputFieldWithIcon(
                 value = formState.nombre,
                 onValueChange = onNombreChange,
                 placeholder = "NOMBRE CLIENTE....",
-                icon = Icons.Outlined.Person
+                icon = Icons.Default.Person
             )
             Spacer(modifier = Modifier.height(10.dp))
+
+            // 🌟 CAMBIO 1: Campo Cédula con validación de números
             InputFieldWithIcon(
                 value = formState.cedula,
-                onValueChange = onCedulaChange,
+                onValueChange = { newValue ->
+                    // Solo actualiza si el nuevo valor son todos dígitos
+                    if (newValue.all { it.isDigit() }) {
+                        onCedulaChange(newValue)
+                    }
+                },
                 placeholder = "C.C....",
-                icon = Icons.Default.Badge
+                icon = Icons.Default.CreditCard,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // Muestra teclado numérico
             )
             Spacer(modifier = Modifier.height(10.dp))
+
+            // 🌟 CAMBIO 2: Campo Teléfono con validación de números
             InputFieldWithIcon(
                 value = formState.telefono,
-                onValueChange = onTelefonoChange,
+                onValueChange = { newValue ->
+                    // Solo actualiza si el nuevo valor son todos dígitos
+                    if (newValue.all { it.isDigit() }) {
+                        onTelefonoChange(newValue)
+                    }
+                },
                 placeholder = "TELÉFONO....",
-                icon = Icons.Outlined.Phone
+                icon = Icons.Default.Phone,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) // Muestra teclado numérico
             )
             Spacer(modifier = Modifier.height(10.dp))
+
             InputFieldWithIcon(
                 value = formState.correo,
                 onValueChange = onCorreoChange,
                 placeholder = "CORREO...",
-                icon = Icons.Default.MailOutline
+                icon = Icons.Default.Email
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // DEPARTAMENTO
             DropdownSelector(
                 label = "DEPARTAMENTO....",
                 opciones = departamentos,
                 seleccionActual = formState.departamentoSeleccionado,
-                onSeleccion = onDepartamentoChange
+                onSeleccion = onDepartamentoChange,
+                isEnabled = true
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // MUNICIPIO
             DropdownSelector(
                 label = "MUNICIPIO...",
                 opciones = municipios,
@@ -199,7 +199,6 @@ fun AgregarClienteDialogContent(
             )
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Botones DETAL y POR MAYOR
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -221,10 +220,8 @@ fun AgregarClienteDialogContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Botón AGREGAR
             Button(
                 onClick = onAgregar,
-                // 🌟 MODIFICACIÓN 2: Habilitado solo si la DB está lista Y el formulario es válido
                 enabled = !isSaving && isFormValid,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -234,14 +231,13 @@ fun AgregarClienteDialogContent(
                 contentPadding = PaddingValues(10.dp)
             ) {
                 Text(
-                    text = if (isSaving) "Conectando..." else "AGREGAR",
+                    text = if (isSaving) "Guardando..." else "AGREGAR",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
 
-            // Indicador de Carga/Guardado
             if (isSaving) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp))
             }
@@ -249,45 +245,14 @@ fun AgregarClienteDialogContent(
     }
 }
 
-// =================================================================
-// COMPONENTES REUTILIZABLES
-// =================================================================
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun InputFieldWithIcon(value: String, onValueChange: (String) -> Unit, placeholder: String, icon: ImageVector) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
-        leadingIcon = {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = ColorVerdeClaroBoton,
-                modifier = Modifier.size(24.dp)
-            )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = ColorVerdeClaroBoton,
-            unfocusedBorderColor = ColorVerdeClaroBoton,
-            cursorColor = ColorVerdeOscuro,
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White,
-        )
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
 fun DropdownSelector(
     label: String,
     opciones: List<String>,
     seleccionActual: String,
     onSeleccion: (String) -> Unit,
-    isEnabled: Boolean = true
+    isEnabled: Boolean = true // <-- Vuelve a ser un booleano simple
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -300,7 +265,7 @@ fun DropdownSelector(
                 .fillMaxWidth()
                 .clickable(enabled = isEnabled) { expanded = !expanded },
             readOnly = true,
-            enabled = isEnabled,
+            enabled = isEnabled, // Usa el booleano que le pasan
             trailingIcon = {
                 Icon(
                     imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
@@ -340,26 +305,44 @@ fun DropdownSelector(
     }
 }
 
+// =================================================================
+// COMPONENTES REUTILIZABLES (CON CAMBIO EN InputFieldWithIcon)
+// =================================================================
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActionButton(text: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val containerColor = if (isSelected) ColorVerdeOscuro else Color.White
-    val contentColor = if (isSelected) Color.White else ColorGrisTexto.copy(alpha = 0.8f)
-    val borderColor = if (isSelected) ColorVerdeOscuro else ColorVerdeOscuro.copy(alpha = 0.5f)
-
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .height(50.dp)
-            .border(2.dp, borderColor, RoundedCornerShape(16.dp)),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp)
-    ) {
-        Text(text = text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    }
+fun InputFieldWithIcon(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    icon: ImageVector,
+    // 🌟 CAMBIO 3: Añadir keyboardOptions como parámetro
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp) },
+        leadingIcon = {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = ColorVerdeClaroBoton,
+                modifier = Modifier.size(24.dp)
+            )
+        },
+        // 🌟 CAMBIO 4: Aplicar las keyboardOptions
+        keyboardOptions = keyboardOptions,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = ColorVerdeClaroBoton,
+            unfocusedBorderColor = ColorVerdeClaroBoton,
+            cursorColor = ColorVerdeOscuro,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+        )
+    )
 }
+
+// ... (El resto de los componentes como DropdownSelector y ActionButton no necesitan cambios)

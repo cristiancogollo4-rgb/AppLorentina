@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "997803594429",
+    "project_id": "applorenita",
+    "storage_bucket": "applorenita.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:997803594429:android:6ff2c4cb6b484d30761dd4",
+        "android_client_info": {
+          "package_name": "com.cristiancogollo.applorentina"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBo9qZmfyrYPtB65LbEQri8u_fYo1XbA8U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

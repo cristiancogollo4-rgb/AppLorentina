@@ -3,22 +3,20 @@ package com.cristiancogollo.applorentina
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import androidx.lifecycle.ViewModelProvider
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.flow.map // 👈 Añadir este
-import kotlinx.coroutines.flow.SharingStarted // 👈 Añadir este
-import kotlinx.coroutines.flow.stateIn // 👈 Añadir este
+import org.json.JSONArray
 
 // ========================
 // 🗺️ Estructuras de Datos
@@ -27,115 +25,72 @@ import kotlinx.coroutines.flow.stateIn // 👈 Añadir este
 // Estado del formulario de Agregar Cliente
 data class ClienteFormState(
     val nombre: String = "",
-    val cedula: String = "",
-    val telefono: String = "",
+    val cedula: String = "", // Se mantiene como String en el formulario, pero se convierte a Long al guardar
+    val telefono: String = "", // Se mantiene como String en el formulario, pero se convierte a Long al guardar
     val correo: String = "",
     val isDetalSelected: Boolean = true, // Tipo Cliente: true = Detal, false = Por Mayor
     val departamentoSeleccionado: String = "",
     val municipioSeleccionado: String = ""
 )
 
-// Estado de la inicialización de Firebase
-data class FirebaseInitializationState(
-    val db: FirebaseFirestore? = null,
-    val userId: String = "",
-    val appId: String = "",
-    val isInitialized: Boolean = false,
-    val error: String? = null
+// Estado general de la UI para esta pantalla
+data class AgregarClienteUiState(
+    val formState: ClienteFormState = ClienteFormState(),
+    val isLoading: Boolean = false,
+    val message: String? = null,
+    val isSaveSuccessful: Boolean = false
 )
 
 // ========================
 // 🧠 VIEWMODEL
 // ========================
 
-class ClienteViewModel(private val context: Context) : ViewModel() {
+class AgregarClienteViewModel(private val context: Context) : ViewModel() {
+
+    // Instancia de Firestore, obtenida de forma simple
+    private val db = FirebaseFirestore.getInstance()
 
     // --- ESTADOS ---
-    private val _formState = MutableStateFlow(ClienteFormState())
-    val formState: StateFlow<ClienteFormState> = _formState
+    private val _uiState = MutableStateFlow(AgregarClienteUiState())
+    val uiState: StateFlow<AgregarClienteUiState> = _uiState.asStateFlow()
 
-    private val _firebaseState = MutableStateFlow(FirebaseInitializationState())
-    val firebaseState: StateFlow<FirebaseInitializationState> = _firebaseState // Usado para habilitar/deshabilitar la UI
+    // --- DATOS DE UBICACIÓN ---
+    private val _departamentosMap = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    val departamentos: List<String>
+        get() = _departamentosMap.value.keys.toList().sorted()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message
+    val municipios: List<String>
+        get() = _departamentosMap.value[_uiState.value.formState.departamentoSeleccionado] ?: emptyList()
 
-    // Lista de clientes para la pantalla de búsqueda/listado
-    private val _clientesList = MutableStateFlow<List<Map<String, Any>>>(emptyList())
-    val clientesList: StateFlow<List<Map<String, Any>>> = _clientesList
-    val isFormValid: StateFlow<Boolean> = formState.map { form ->
-        // La validación comprueba que los campos obligatorios no estén vacíos
-        form.nombre.isNotBlank() &&
-                form.cedula.isNotBlank() &&
-                form.telefono.isNotBlank() &&
-                form.departamentoSeleccionado.isNotBlank() &&
-                form.municipioSeleccionado.isNotBlank()
-    }.stateIn(
+    // Estado derivado para validar el formulario de forma reactiva
+    val isFormValid: StateFlow<Boolean> = _uiState.map { state ->
+        state.formState.nombre.isNotBlank() &&
+                state.formState.cedula.isNotBlank() &&
+                state.formState.telefono.isNotBlank() &&
+                state.formState.departamentoSeleccionado.isNotBlank() &&
+                state.formState.municipioSeleccionado.isNotBlank()
+    }.stateIn( // <-- LÍNEA CORRECTA
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = false
     )
 
-    // --- DATOS DE UBICACIÓN ---
-    private val _departamentosMap = MutableStateFlow<Map<String, List<String>>>(emptyMap())
-
-    val departamentos: List<String>
-        get() = _departamentosMap.value.keys.toList().sorted()
-
-    val municipios: List<String>
-        get() = _departamentosMap.value[_formState.value.departamentoSeleccionado] ?: emptyList()
-
-
     init {
-        initializeFirebaseAndLoadData()
+        cargarDatosDeUbicacion()
     }
 
     // ===============================================
-    // ⚙️ Inicialización de Firebase (con .await() y Fallbacks)
+    // 🗂️ Cargar Datos de Ubicación desde JSON
     // ===============================================
-
-    private fun initializeFirebaseAndLoadData() {
+    private fun cargarDatosDeUbicacion() {
         viewModelScope.launch {
             try {
-                // 1. Cargar datos de ubicación
                 val map = leerDepartamentos(context)
                 _departamentosMap.value = map
-
-                // 2. Obtener referencias
-                val auth = Firebase.auth
-                val db = Firebase.firestore
-                val resources = context.resources
-                val packageName = context.packageName
-
-                // 🌟 Manejo seguro de recursos (Soluciona el error 0x0)
-                val authTokenId = resources.getIdentifier("__initial_auth_token", "string", packageName)
-                val appIdId = resources.getIdentifier("__app_id", "string", packageName)
-
-                val authToken = if (authTokenId != 0) resources.getString(authTokenId) else "null"
-                val appId = if (appIdId != 0) resources.getString(appIdId) else "test-app-id"
-
-                // 3. Intentar autenticación (usando await() para Coroutines)
-                val userId = if (authToken.isNotEmpty() && authToken != "null") {
-                    // Intenta sign-in con token
-                    auth.signInWithCustomToken(authToken).await().user?.uid ?: "anonymous"
-                } else {
-                    // Intenta sign-in anónima si no hay token válido
-                    auth.signInAnonymously().await().user?.uid ?: "anonymous"
-                }
-
-                _firebaseState.value = FirebaseInitializationState(
-                    db = db,
-                    userId = userId,
-                    appId = appId,
-                    isInitialized = true
-                )
-                Log.d("ClienteViewModel", "Firebase inicializado con éxito. UserID: $userId, AppId: $appId")
-
+                Log.d("AgregarClienteVM", "Datos de ubicación cargados correctamente.")
             } catch (e: Exception) {
-                // Captura errores de Auth (Task is not yet complete) o permisos
-                Log.e("ClienteViewModel", "Error al inicializar Firebase o Auth: ${e.message}")
-                _firebaseState.value = _firebaseState.value.copy(error = "Error de conexión: ${e.message}")
-                _message.value = "Error de conexión: ${e.message}"
+                Log.e("AgregarClienteVM", "Error al cargar datos de ubicación: ${e.message}")
+                _uiState.update { it.copy(message = "No se pudieron cargar los departamentos.") }
             }
         }
     }
@@ -143,57 +98,63 @@ class ClienteViewModel(private val context: Context) : ViewModel() {
     // ===============================================
     // 🖊️ Handlers de Formulario
     // ===============================================
-
-    fun updateNombre(nombre: String) { _formState.value = _formState.value.copy(nombre = nombre) }
-    fun updateCedula(cedula: String) { _formState.value = _formState.value.copy(cedula = cedula) }
-    fun updateTelefono(telefono: String) { _formState.value = _formState.value.copy(telefono = telefono) }
-    fun updateCorreo(correo: String) { _formState.value = _formState.value.copy(correo = correo) }
-
-    fun setTipoCliente(isDetal: Boolean) {
-        _formState.value = _formState.value.copy(isDetalSelected = isDetal)
-    }
+    fun updateNombre(nombre: String) = _uiState.update { it.copy(formState = it.formState.copy(nombre = nombre)) }
+    fun updateCedula(cedula: String) = _uiState.update { it.copy(formState = it.formState.copy(cedula = cedula)) }
+    fun updateTelefono(telefono: String) = _uiState.update { it.copy(formState = it.formState.copy(telefono = telefono)) }
+    fun updateCorreo(correo: String) = _uiState.update { it.copy(formState = it.formState.copy(correo = correo)) }
+    fun setTipoCliente(isDetal: Boolean) = _uiState.update { it.copy(formState = it.formState.copy(isDetalSelected = isDetal)) }
 
     fun updateDepartamento(departamento: String) {
-        _formState.value = _formState.value.copy(
-            departamentoSeleccionado = departamento,
-            municipioSeleccionado = ""
-        )
+        _uiState.update {
+            it.copy(
+                formState = it.formState.copy(
+                    departamentoSeleccionado = departamento,
+                    municipioSeleccionado = "" // Se limpia el municipio al cambiar de departamento
+                )
+            )
+        }
     }
 
-    fun updateMunicipio(municipio: String) {
-        _formState.value = _formState.value.copy(municipioSeleccionado = municipio)
-    }
+    fun updateMunicipio(municipio: String) = _uiState.update { it.copy(formState = it.formState.copy(municipioSeleccionado = municipio)) }
 
-    fun clearMessage() {
-        _message.value = null
-    }
+    fun clearMessage() = _uiState.update { it.copy(message = null) }
+    fun resetSaveState() = _uiState.update { it.copy(isSaveSuccessful = false) }
 
     // ===============================================
-    // 💾 CRUD CLIENTES (usando Coroutines)
+    // 💾 GUARDAR CLIENTE (CORREGIDO Y SIMPLIFICADO)
     // ===============================================
-
-    // 🌟 1. GUARDAR/AGREGAR CLIENTE (CREATE)
     fun saveCliente() {
-        val state = _firebaseState.value
-        val form = _formState.value
+        val form = _uiState.value.formState
 
-        if (!state.isInitialized || state.db == null || state.userId.isEmpty()) {
-            _message.value = "Error: La conexión a la base de datos no está lista. Intente de nuevo."
+        // 1. Validar que el formulario sea válido (aunque el botón ya debería estar deshabilitado)
+        if (!isFormValid.value) {
+            _uiState.update { it.copy(message = "Por favor, complete todos los campos obligatorios.") }
             return
         }
 
-        if (form.nombre.isBlank() || form.cedula.isBlank() || form.telefono.isBlank() || form.departamentoSeleccionado.isBlank() || form.municipioSeleccionado.isBlank()) {
-            _message.value = "Por favor, complete todos los campos obligatorios."
-            return
-        }
+        // 2. Mostrar estado de carga
+        _uiState.update { it.copy(isLoading = true, message = null) }
 
         viewModelScope.launch {
             try {
-                // Claves de Firestore ajustadas a tus imágenes
-                val clienteData: Map<String, Any> = mapOf(
+                // 3. CORRECCIÓN CLAVE: Convertir cédula y teléfono a Long
+                val cedulaAsLong = form.cedula.toLongOrNull()
+                val telefonoAsLong = form.telefono.toLongOrNull()
+
+                if (cedulaAsLong == null) {
+                    _uiState.update { it.copy(isLoading = false, message = "La cédula debe ser un número válido.") }
+                    return@launch
+                }
+                if (telefonoAsLong == null) {
+                    _uiState.update { it.copy(isLoading = false, message = "El teléfono debe ser un número válido.") }
+                    return@launch
+                }
+
+                // 4. Crear el mapa de datos con los TIPOS y NOMBRES CORRECTOS
+                val clienteData = mapOf(
+                    "C.C." to cedulaAsLong, // NOMBRE CORRECTO y TIPO Long
                     "Nombre_Apellido" to form.nombre.trim(),
-                    "C.C" to form.cedula.trim(),
-                    "Telefono" to form.telefono.trim(),
+                    "Telefono" to telefonoAsLong, // TIPO Long
                     "Correo" to form.correo.trim(),
                     "Departamento" to form.departamentoSeleccionado,
                     "Municipio" to form.municipioSeleccionado,
@@ -201,66 +162,37 @@ class ClienteViewModel(private val context: Context) : ViewModel() {
                     "timestamp" to Timestamp.now()
                 )
 
-                // Ruta: /artifacts/{appId}/users/{userId}/clientes
-                val path = "Clientes"
-                val collectionRef = state.db.collection(path)
+                // 5. Guardar en Firestore
+                db.collection("Clientes").add(clienteData).await()
 
-                // USANDO .await() para guardado
-                collectionRef.add(clienteData).await()
-
-                _message.value = "Cliente '${form.nombre.trim()}' agregado con éxito!"
-                _formState.value = ClienteFormState() // Limpiar formulario
-
-            } catch (e: Exception) {
-                _message.value = "Error al guardar: ${e.message}"
-            }
-        }
-    }
-
-    // 🌟 2. OBTENER/LISTAR CLIENTES (READ)
-    fun fetchClientes() {
-        val state = _firebaseState.value
-        if (!state.isInitialized || state.db == null || state.userId.isEmpty()) {
-            Log.e("ClienteViewModel", "No se puede obtener clientes, DB no inicializada.")
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                // Ruta de la colección
-                val path = "Clientes"
-
-                // USANDO .await() para obtener documentos
-                val result = state.db.collection(path).get().await()
-
-                val clientes = result.documents.map { doc ->
-                    // Mapea el documento a un Map<String, Any> e incluye el ID de Firestore
-                    doc.data?.toMutableMap()?.apply {
-                        put("documentId", doc.id)
-                    } ?: mapOf("documentId" to doc.id)
+                // 6. Éxito: Limpiar formulario y notificar al usuario
+                _uiState.update {
+                    AgregarClienteUiState( // Resetea el estado completo
+                        message = "Cliente '${form.nombre.trim()}' agregado con éxito!",
+                        isSaveSuccessful = true
+                    )
                 }
-
-                @Suppress("UNCHECKED_CAST")
-                _clientesList.value = clientes as List<Map<String, Any>>
-                Log.d("ClienteViewModel", "Clientes obtenidos: ${_clientesList.value.size}")
+                Log.d("AgregarClienteVM", "Cliente guardado exitosamente.")
 
             } catch (e: Exception) {
-                Log.e("ClienteViewModel", "Error al obtener clientes: ${e.message}")
-                _clientesList.value = emptyList()
+                // 7. Error: Notificar al usuario
+                Log.e("AgregarClienteVM", "Error al guardar cliente", e)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        message = "Error al guardar: ${e.message}"
+                    )
+                }
             }
         }
     }
-
-    // ... (Aquí irían las funciones de editar y eliminar cliente si fueran necesarias)
 }
 
 // ===============================================
-// 🛠️ Función de Lectura de JSON (Utilidad)
+// 🛠️ Función de Lectura de JSON (Sin cambios)
 // ===============================================
-
 fun leerDepartamentos(context: Context): Map<String, List<String>> {
     return try {
-        // Asegúrate de que colombia.json esté en la carpeta assets/
         val jsonText = context.assets.open("colombia.json").bufferedReader().use { it.readText() }
         val jsonArray = JSONArray(jsonText)
         val map = mutableMapOf<String, List<String>>()
@@ -281,11 +213,14 @@ fun leerDepartamentos(context: Context): Map<String, List<String>> {
     }
 }
 
-class ClienteViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+// ===============================================
+// 🏭 ViewModelFactory (Necesario por el Context)
+// ===============================================
+class AgregarClienteViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ClienteViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(AgregarClienteViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ClienteViewModel(context) as T
+            return AgregarClienteViewModel(context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }
