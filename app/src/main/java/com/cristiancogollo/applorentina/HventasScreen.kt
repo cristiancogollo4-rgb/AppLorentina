@@ -11,22 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,52 +22,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-// Si tu paquete es el mismo, este import de R es opcional. Déjalo si el IDE lo pide.
-import com.cristiancogollo.applorentina.R
-
-// ================================================================
-// 0) Enum del filtro
-// ================================================================
-enum class VentasFilter { CLIENTE, FECHA, CC }
-
-// ================================================================
-// 1) Pantalla Historial de Ventas
-// ================================================================
 @Composable
 fun HventasScreen(
     onBackClick: () -> Unit = {},
-    onNewVentaClick: () -> Unit
+    onNewVentaClick: () -> Unit,
+    vm: VentasViewModel = viewModel()
 ) {
+    val ui by vm.ui.collectAsState()
+
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
     val colorGrisTexto = Color(0xFF5C5C5C)
-
-    var searchQuery by remember { mutableStateOf("") }
-    var filtroSeleccionado by remember { mutableStateOf(VentasFilter.CLIENTE) }
-
-    // Datos de ventas de ejemplo (Triple: Nº, Cliente, Monto)
-    val ventas = listOf(
-        Triple("001", "JUAN PEREZ", "$180.000"),
-        Triple("002", "MARIA GOMEZ", "$120.000"),
-        Triple("003", "CARLOS RUIZ", "$250.000"),
-        Triple("004", "ANA LOPEZ", "$180.000"),
-        Triple("005", "PEDRO RAMIREZ", "$90.000")
-    )
-
-    // Orden dinámico según el filtro seleccionado
-    val ventasOrdenadas = remember(filtroSeleccionado, ventas) {
-        when (filtroSeleccionado) {
-            // Orden por nombre (second)
-            VentasFilter.CLIENTE -> ventas.sortedBy { it.second.lowercase() }
-            // Aquí usamos el primer campo (id como “FECHA” de maqueta). Cuando conectes con datos reales,
-            // cambia a la fecha real (Date/String parseado).
-            VentasFilter.FECHA -> ventas.sortedBy { it.first }
-            // Simulación de C.C.: aquí usarías tu campo de documento; como no está en el Triple,
-            // lo dejamos en third (monto) solo para demostrar el cambio de orden.
-            VentasFilter.CC -> ventas.sortedBy { it.third }
-        }
-    }
+    val sdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val money = remember { NumberFormat.getCurrencyInstance(Locale("es","CO")) }
 
     Column(
         modifier = Modifier
@@ -102,7 +60,7 @@ fun HventasScreen(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Encabezado verde con botón back y logo
+                    // Encabezado
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -115,16 +73,10 @@ fun HventasScreen(
                                 .align(Alignment.CenterStart)
                                 .padding(start = 8.dp)
                         ) {
-                            androidx.compose.material3.IconButton(onClick = onBackClick) {
-                                androidx.compose.material3.Icon(
-                                    imageVector = Icons.Filled.ArrowBack,
-                                    contentDescription = "Volver",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(35.dp)
-                                )
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(35.dp))
                             }
                         }
-
                         Image(
                             painter = painterResource(id = R.drawable.lorenita),
                             contentDescription = "Logo Lorentina",
@@ -137,28 +89,16 @@ fun HventasScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Título
-                    Text(
-                        text = "HISTORIAL DE VENTAS",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = colorGrisTexto
-                    )
+                    Text("HISTORIAL DE VENTAS", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colorGrisTexto)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Buscador
                     OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        value = ui.query,
+                        onValueChange = vm::setQuery,
                         placeholder = { Text("BUSCAR VENTA....", color = Color.Gray.copy(alpha = 0.7f)) },
-                        leadingIcon = {
-                            androidx.compose.material3.Icon(
-                                Icons.Filled.Search,
-                                contentDescription = "Buscar",
-                                tint = colorVerdeClaro
-                            )
-                        },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = colorVerdeClaro) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
@@ -167,62 +107,76 @@ fun HventasScreen(
                             focusedBorderColor = colorVerdeClaro,
                             unfocusedBorderColor = colorVerdeClaro,
                             cursorColor = colorVerdeOscuro
-                        )
+                        ),
+                        singleLine = true
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Botones de filtro
+                    // Filtros
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        HventasFilterButton(
+                        FilterButtonVentas(
                             text = "CLIENTE",
-                            isSelected = filtroSeleccionado == VentasFilter.CLIENTE,
-                            onClick = { filtroSeleccionado = VentasFilter.CLIENTE },
+                            isSelected = ui.sort == VentasSort.CLIENTE,
+                            onClick = { vm.setSort(VentasSort.CLIENTE) },
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(
+                        FilterButtonVentas(
                             text = "FECHA",
-                            isSelected = filtroSeleccionado == VentasFilter.FECHA,
-                            onClick = { filtroSeleccionado = VentasFilter.FECHA },
+                            isSelected = ui.sort == VentasSort.FECHA,
+                            onClick = { vm.setSort(VentasSort.FECHA) },
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(
+                        FilterButtonVentas(
                             text = "C.C",
-                            isSelected = filtroSeleccionado == VentasFilter.CC,
-                            onClick = { filtroSeleccionado = VentasFilter.CC },
+                            isSelected = ui.sort == VentasSort.CC,
+                            onClick = { vm.setSort(VentasSort.CC) },
                             modifier = Modifier.weight(1f)
                         )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de ventas (usa la lista ORDENADA)
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 24.dp)
-                    ) {
-                        items(ventasOrdenadas) { (numVenta, nombre, monto) ->
-                            VentaCard(
-                                numVenta = numVenta,
-                                nombreCliente = nombre,
-                                monto = monto,
-                                colorVerdeClaro = colorVerdeClaro
-                            )
+                    // Lista
+                    when {
+                        ui.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = colorVerdeClaro)
+                        }
+                        ui.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(ui.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                        }
+                        ui.filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                            Text("Sin resultados para \"${ui.query}\"", color = Color.Gray, modifier = Modifier.padding(top = 16.dp))
+                        }
+                        else -> LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 24.dp)
+                        ) {
+                            items(ui.filtered) { v ->
+                                VentaCardUI(
+                                    numVenta = v.idVenta.ifBlank { "—" },
+                                    nombreCliente = v.cliente?.nombreApellido ?: "Sin cliente",
+                                    monto = runCatching { money.format(v.precioTotal) }.getOrDefault("$${v.precioTotal}"),
+                                    fecha = runCatching { sdf.format(v.fechaVenta) }.getOrDefault(""),
+                                    cc = (v.cliente?.cedula ?: 0L).toString(),
+                                    colorVerdeClaro = colorVerdeClaro
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(80.dp)) // espacio para el FAB
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
 
-                // FAB Agregar Venta
+                // FAB
                 FloatingActionButton(
                     onClick = onNewVentaClick,
                     containerColor = colorVerdeClaro,
@@ -233,22 +187,9 @@ fun HventasScreen(
                         .padding(end = 24.dp, bottom = 24.dp)
                         .size(90.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        androidx.compose.material3.Icon(
-                            Icons.Filled.Add,
-                            contentDescription = "Agregar venta",
-                            modifier = Modifier.size(60.dp)
-                        )
-                        Text(
-                            "AGREGAR VENTA",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            lineHeight = 10.sp
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Filled.Add, contentDescription = "Agregar venta", modifier = Modifier.size(60.dp))
+                        Text("AGREGAR VENTA", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.White, lineHeight = 10.sp)
                     }
                 }
             }
@@ -256,11 +197,8 @@ fun HventasScreen(
     }
 }
 
-// ================================================================
-// 2) Componentes auxiliares
-// ================================================================
 @Composable
-fun HventasFilterButton(
+private fun FilterButtonVentas(
     text: String,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -272,24 +210,28 @@ fun HventasFilterButton(
 
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
         shape = RoundedCornerShape(10.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(borderColor)
         ),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-        modifier = modifier.height(35.dp) // altura según mockup
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        modifier = modifier.height(35.dp)
     ) {
         Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerdeClaro: Color) {
+private fun VentaCardUI(
+    numVenta: String,
+    nombreCliente: String,
+    monto: String,
+    fecha: String,
+    cc: String,
+    colorVerdeClaro: Color
+) {
     val colorGrisTexto = Color(0xFF5C5C5C)
 
     Card(
@@ -308,40 +250,24 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                numVenta,
+                numVenta.takeLast(3).padStart(3, '0'),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = colorGrisTexto,
-                modifier = Modifier.width(30.dp)
+                modifier = Modifier.width(40.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                nombreCliente,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = colorGrisTexto,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                monto,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = colorGrisTexto
-            )
+            Spacer(Modifier.width(10.dp))
+            Text(nombreCliente, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colorGrisTexto, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(monto, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colorGrisTexto)
+                if (fecha.isNotBlank()) Text(fecha, fontSize = 12.sp, color = Color.Gray)
+            }
         }
     }
 }
 
-// ================================================================
-// 3) Preview
-// ================================================================
 @Preview(showBackground = true)
 @Composable
 fun HventasScreenPreview() {
-    Surface(color = Color(0xFFEFEFEF)) {
-        HventasScreen(
-            onBackClick = { },
-            onNewVentaClick = { }
-        )
-    }
+    HventasScreen(onNewVentaClick = { })
 }

@@ -4,26 +4,24 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException // Import necesario
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay // Necesario para el Debounce y la simulación
 import java.util.Date
-
-// =================================================================
-// ESTRUCTURA DE ESTADO
-// =================================================================
 
 data class NventaUiState(
     val clienteBuscado: String = "",
     val clienteSeleccionado: Cliente? = null,
     val mensajeClienteNoEncontrado: String? = null,
 
-    // ESTADOS PARA EL DESPLEGABLE Y FILTRADO
-    val allClientes: List<Cliente> = emptyList(), // Lista completa de la DB
-    val clientesFiltrados: List<Cliente> = emptyList(), // Resultados del filtro
+    val allClientes: List<Cliente> = emptyList(),
+    val clientesFiltrados: List<Cliente> = emptyList(),
     val isDropdownExpanded: Boolean = false,
-    val isClientesLoading: Boolean = false, // Indica si la lista de clientes está cargando
+    val isClientesLoading: Boolean = false,
 
     val precio: String = "",
     val fechaVenta: Date = Date(),
@@ -33,13 +31,8 @@ data class NventaUiState(
     val isSaving: Boolean = false
 )
 
-// =================================================================
-// VIEWMODEL
-// =================================================================
-
 class NventaViewModel : ViewModel() {
 
-    // 🟢 INSTANCIA DE FIRESTORE
     private val db = FirebaseFirestore.getInstance()
 
     private val _uiState = MutableStateFlow(NventaUiState())
@@ -48,71 +41,45 @@ class NventaViewModel : ViewModel() {
     private val _searchQueryFlow = MutableStateFlow("")
 
     init {
-        // 1. Inicia la carga de clientes de la DB
         fetchClientes()
-        // 2. Inicia la recolección con Debounce para el autocompletado
         collectSearchQueryWithDebounce()
     }
 
-    /**
-     * 🟢 NUEVA FUNCIÓN: Escucha los cambios en la colección "Clientes" de Firestore.
-     */
+    /** Escucha Clientes en tiempo real */
     private fun fetchClientes() {
         _uiState.update { it.copy(isClientesLoading = true) }
 
         db.collection("Clientes")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("NventaViewModel", "Error al escuchar clientes: ${error.message}", error)
-                    _uiState.update {
-                        it.copy(isClientesLoading = false)
-                    }
+                    Log.e("NventaVM", "Error escuchar clientes: ${error.message}", error)
+                    _uiState.update { it.copy(isClientesLoading = false) }
                     return@addSnapshotListener
                 }
 
-                if (snapshot != null && !snapshot.isEmpty) {
-                    val clientes = snapshot.toObjects(Cliente::class.java)
-                    _uiState.update {
-                        it.copy(
-                            allClientes = clientes,
-                            isClientesLoading = false
-                        )
-                    }
-                } else {
-                    _uiState.update {
-                        it.copy(
-                            allClientes = emptyList(),
-                            isClientesLoading = false
-                        )
-                    }
-                }
+                val clientes = snapshot?.toObjects(Cliente::class.java).orEmpty()
+                _uiState.update { it.copy(allClientes = clientes, isClientesLoading = false) }
             }
     }
 
-
-    /**
-     * Configura el debounce y el filtrado en un coroutine.
-     */
+    /** Debounce para autocompletar */
     private fun collectSearchQueryWithDebounce() {
         viewModelScope.launch {
             _searchQueryFlow
-                .debounce(300L)
+                .debounce(300)
                 .distinctUntilChanged()
                 .collect { query ->
-                    val filteredList = performFilter(query)
-
-                    val trimmedQuery = query.trim()
+                    val trimmed = query.trim()
+                    val filtered = performFilter(trimmed)
                     _uiState.update {
                         it.copy(
-                            clientesFiltrados = filteredList,
-                            isDropdownExpanded = filteredList.isNotEmpty() && trimmedQuery.isNotEmpty()
+                            clientesFiltrados = filtered,
+                            isDropdownExpanded = filtered.isNotEmpty() && trimmed.isNotEmpty()
                         )
                     }
                 }
         }
     }
-
-    // --- FUNCIONES DE BÚSQUEDA Y SELECCIÓN ---
 
     fun onClienteBuscadoChange(query: String) {
         _uiState.update {
@@ -123,148 +90,93 @@ class NventaViewModel : ViewModel() {
             )
         }
         _searchQueryFlow.value = query
-
-        if (query.isBlank()) {
-            _uiState.update { it.copy(isDropdownExpanded = false) }
-        }
+        if (query.isBlank()) _uiState.update { it.copy(isDropdownExpanded = false) }
     }
 
-    /**
-     * Lógica de filtrado con startsWith (búsqueda secuencial)
-     */
     private fun performFilter(query: String): List<Cliente> {
-        val trimmedQuery = query.trim()
-        if (trimmedQuery.isBlank()) return emptyList()
-
-        // 🟢 USAMOS LA LISTA CARGADA POR FIRESTORE
-        return uiState.value.allClientes.filter { cliente ->
-            val nombreMatches = cliente.nombreApellido.startsWith(trimmedQuery, ignoreCase = true)
-            // Asegúrate de que la cédula sea tratada como String para startsWith
-            val cedulaMatches = cliente.cedula.toString().startsWith(trimmedQuery)
-
-            nombreMatches || cedulaMatches
+        if (query.isBlank()) return emptyList()
+        return uiState.value.allClientes.filter { c ->
+            c.nombreApellido.startsWith(query, true) ||
+                    c.cedula.toString().startsWith(query)
         }.take(10)
     }
 
     fun seleccionarCliente(cliente: Cliente?) {
         _uiState.update {
-            if (cliente == null) {
-                it.copy(
-                    clienteSeleccionado = null,
-                    clienteBuscado = "",
-                    isDropdownExpanded = false,
-                    mensajeClienteNoEncontrado = null
-                )
-            } else {
-                it.copy(
-                    clienteSeleccionado = cliente,
-                    clienteBuscado = cliente.nombreApellido,
-                    isDropdownExpanded = false,
-                    mensajeClienteNoEncontrado = null
-                )
-            }
+            if (cliente == null) it.copy(
+                clienteSeleccionado = null,
+                clienteBuscado = "",
+                isDropdownExpanded = false,
+                mensajeClienteNoEncontrado = null
+            ) else it.copy(
+                clienteSeleccionado = cliente,
+                clienteBuscado = cliente.nombreApellido,
+                isDropdownExpanded = false,
+                mensajeClienteNoEncontrado = null
+            )
         }
     }
 
     fun buscarClientePorNombre(query: String) {
-        val trimmedQuery = query.trim()
-
+        val q = query.trim()
         _uiState.update { it.copy(isDropdownExpanded = false) }
-
-        // 🟢 USAMOS LA LISTA CARGADA POR FIRESTORE
-        val clienteEncontrado = uiState.value.allClientes.find {
-            it.nombreApellido.equals(trimmedQuery, ignoreCase = true) || it.cedula.toString() == trimmedQuery
+        val encontrado = uiState.value.allClientes.find {
+            it.nombreApellido.equals(q, true) || it.cedula.toString() == q
         }
-
-        if (clienteEncontrado != null) {
-            seleccionarCliente(clienteEncontrado)
-        } else {
-            _uiState.update {
-                it.copy(
-                    clienteSeleccionado = null,
-                    mensajeClienteNoEncontrado = "Cliente no encontrado. Por favor, agregue uno nuevo."
-                )
-            }
-        }
+        if (encontrado != null) seleccionarCliente(encontrado) else
+            _uiState.update { it.copy(mensajeClienteNoEncontrado = "Cliente no encontrado. Agrega uno nuevo.") }
     }
 
-    fun dismissDropdown() {
-        _uiState.update { it.copy(isDropdownExpanded = false) }
+    fun dismissDropdown() = _uiState.update { it.copy(isDropdownExpanded = false) }
+
+    fun onPrecioChange(nuevo: String) {
+        if (nuevo.all { it.isDigit() || it == '.' }) _uiState.update { it.copy(precio = nuevo) }
+    }
+    fun onFechaChange(nueva: Date) = _uiState.update { it.copy(fechaVenta = nueva) }
+    fun onDescripcionChange(desc: String) = _uiState.update { it.copy(descripcion = desc) }
+    fun toggleTipoVenta(esDetal: Boolean) = _uiState.update { it.copy(esDetal = esDetal) }
+    fun toggleVentaEspecial(isSpecial: Boolean) = _uiState.update {
+        if (!it.esDetal) it.copy(esVentaEspecial = isSpecial) else it.copy(esVentaEspecial = false)
     }
 
-    // --- RESTO DE LAS FUNCIONES DE ESTADO (Mantenidas) ---
-
-    fun onPrecioChange(nuevoPrecio: String) {
-        if (nuevoPrecio.all { it.isDigit() || it == '.' }) {
-            _uiState.update { it.copy(precio = nuevoPrecio) }
-        }
-    }
-
-    fun onFechaChange(nuevaFecha: Date) {
-        _uiState.update { it.copy(fechaVenta = nuevaFecha) }
-    }
-
-    fun onDescripcionChange(desc: String) {
-        _uiState.update { it.copy(descripcion = desc) }
-    }
-
-    fun toggleTipoVenta(esDetal: Boolean) {
-        _uiState.update { it.copy(esDetal = esDetal) }
-    }
-
-    fun toggleVentaEspecial(isSpecial: Boolean) {
-        _uiState.update {
-            if (!it.esDetal) {
-                it.copy(esVentaEspecial = isSpecial)
-            } else {
-                it.copy(esVentaEspecial = false)
-            }
-        }
-    }
-
-    /**
-     * Simulación de la lógica de guardado de la venta (ajustada).
-     */
+    /** Guarda la venta en Firestore */
     fun guardarVenta(onSaveSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
 
-            val state = uiState.value
+            val s = uiState.value
+            val cli = s.clienteSeleccionado
+            val precio = s.precio.toDoubleOrNull()
 
-            val clienteSeleccionado = state.clienteSeleccionado
-            val precio = state.precio.toDoubleOrNull()
-
-            if (clienteSeleccionado == null || precio == null) {
+            if (cli == null || precio == null) {
                 _uiState.update { it.copy(isSaving = false) }
-                onError("Debe seleccionar un cliente y agregar un precio válido.")
+                onError("Debe seleccionar un cliente y un precio válido.")
                 return@launch
             }
 
-            // 🔹 Crear el objeto venta
-            val nuevaVenta = Venta(
-                idVenta = db.collection("Ventas").document().id, // genera ID automáticamente
-                cliente = clienteSeleccionado,
-                fechaVenta = state.fechaVenta,
+            val venta = Venta(
+                idVenta = db.collection("Ventas").document().id,
+                cliente = cli,
+                fechaVenta = s.fechaVenta,
                 precioTotal = precio,
-                descripcion = state.descripcion,
-                esDetal = state.esDetal,
-                esVentaEspecial = state.esVentaEspecial,
-                productos = emptyList() // por ahora vacío
+                descripcion = s.descripcion,
+                esDetal = s.esDetal,
+                esVentaEspecial = s.esVentaEspecial,
+                productos = emptyList()
             )
 
-            // 🔹 Guardar en Firestore
             db.collection("Ventas")
-                .document(nuevaVenta.idVenta)
-                .set(nuevaVenta)
+                .document(venta.idVenta)
+                .set(venta)
                 .addOnSuccessListener {
-                    Log.d("NventaViewModel", "✅ Venta guardada correctamente en Firestore.")
-                    _uiState.update { NventaUiState(allClientes = it.allClientes) } // Resetea el formulario
+                    Log.d("NventaVM", "Venta guardada.")
+                    _uiState.update { NventaUiState(allClientes = it.allClientes) }
                     onSaveSuccess()
                 }
                 .addOnFailureListener { e ->
-                    Log.e("NventaViewModel", "❌ Error al guardar la venta: ${e.message}", e)
+                    Log.e("NventaVM", "Error guardar venta: ${e.message}", e)
                     _uiState.update { it.copy(isSaving = false) }
-                    onError(e.message ?: "Error desconocido al guardar la venta")
+                    onError(e.message ?: "Error desconocido")
                 }
         }
     }
