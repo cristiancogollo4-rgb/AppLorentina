@@ -1,13 +1,14 @@
 package com.cristiancogollo.applorentina
 
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import me.oscarsanchez.myapplication.NventaDialogScreen
 
 sealed class Screen(val route: String) {
@@ -40,10 +41,30 @@ sealed class Screen(val route: String) {
 @Composable
 fun NavigationApp() {
     val navController = rememberNavController()
+    val auth = FirebaseAuth.getInstance()
+
+    // ✅ Detectar usuario actual
+    val currentUser = auth.currentUser
+    val startDestination = remember { mutableStateOf(Screen.Login.route) }
+
+    // ✅ Si hay sesión activa, decidir el rol según el dominio del correo
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            val email = currentUser.email ?: ""
+            startDestination.value = when {
+                email.endsWith("@admin.com") -> Screen.HomeAdmin.route
+                email.endsWith("@gmail.com") || email.endsWith("@hotmail.com") -> Screen.HomeVendedor.route
+                else -> Screen.Login.route
+            }
+        } else {
+            startDestination.value = Screen.Login.route
+        }
+    }
+
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route
+        startDestination = startDestination.value
     ) {
 
         // 🟩 LOGIN
@@ -53,10 +74,15 @@ fun NavigationApp() {
                     when (selectedRole) {
                         UserRole.VENDEDOR -> navController.navigate(Screen.HomeVendedor.route)
                         UserRole.ADMINISTRADOR -> navController.navigate(Screen.HomeAdmin.route)
+                        UserRole.VENDEDOR -> navController.navigate(Screen.HomeVendedor.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                        UserRole.ADMINISTRADOR -> navController.navigate(Screen.HomeAdmin.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                     }
                 },
-                // Corrección de tipo si onForgotPasswordClick espera Unit
-                onForgotPasswordClick = { /* No hace nada */ }
+                onForgotPasswordClick = { /* acción futura */ }
             )
         }
 
@@ -64,16 +90,24 @@ fun NavigationApp() {
         composable(Screen.HomeVendedor.route) {
             HomeScreen(
                 navController = navController,
-                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
-                onLogoutClick = { navController.popBackStack() } as () -> Unit
+                onLogoutClick = {
+                    auth.signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.HomeVendedor.route) { inclusive = true }
+                    }
+                }
             )
         }
 
         // 🟨 HOME ADMIN
         composable(Screen.HomeAdmin.route) {
             HomeAdmin(
-                // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
-                onLogoutClick = { navController.popBackStack() } as () -> Unit,
+                onLogoutClick = {
+                    auth.signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.HomeAdmin.route) { inclusive = true }
+                    }
+                },
                 navTo = { route -> navController.navigate(route) }
             )
         }
