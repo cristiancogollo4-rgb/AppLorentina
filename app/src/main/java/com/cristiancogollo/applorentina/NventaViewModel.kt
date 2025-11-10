@@ -225,20 +225,47 @@ class NventaViewModel : ViewModel() {
     /**
      * Simulación de la lógica de guardado de la venta (ajustada).
      */
-    fun guardarVenta(onSaveSuccess: () -> Unit) {
+    fun guardarVenta(onSaveSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
 
-            if (uiState.value.clienteSeleccionado == null || uiState.value.precio.toDoubleOrNull() == null) {
+            val state = uiState.value
+
+            val clienteSeleccionado = state.clienteSeleccionado
+            val precio = state.precio.toDoubleOrNull()
+
+            if (clienteSeleccionado == null || precio == null) {
                 _uiState.update { it.copy(isSaving = false) }
+                onError("Debe seleccionar un cliente y agregar un precio válido.")
                 return@launch
             }
 
-            // Aquí iría la lógica de guardado en Firestore.
-            delay(1000)
+            // 🔹 Crear el objeto venta
+            val nuevaVenta = Venta(
+                idVenta = db.collection("Ventas").document().id, // genera ID automáticamente
+                cliente = clienteSeleccionado,
+                fechaVenta = state.fechaVenta,
+                precioTotal = precio,
+                descripcion = state.descripcion,
+                esDetal = state.esDetal,
+                esVentaEspecial = state.esVentaEspecial,
+                productos = emptyList() // por ahora vacío
+            )
 
-            _uiState.update { NventaUiState(allClientes = it.allClientes) } // Resetear el estado, manteniendo la lista de clientes
-            onSaveSuccess()
+            // 🔹 Guardar en Firestore
+            db.collection("Ventas")
+                .document(nuevaVenta.idVenta)
+                .set(nuevaVenta)
+                .addOnSuccessListener {
+                    Log.d("NventaViewModel", "✅ Venta guardada correctamente en Firestore.")
+                    _uiState.update { NventaUiState(allClientes = it.allClientes) } // Resetea el formulario
+                    onSaveSuccess()
+                }
+                .addOnFailureListener { e ->
+                    Log.e("NventaViewModel", "❌ Error al guardar la venta: ${e.message}", e)
+                    _uiState.update { it.copy(isSaving = false) }
+                    onError(e.message ?: "Error desconocido al guardar la venta")
+                }
         }
     }
 }
