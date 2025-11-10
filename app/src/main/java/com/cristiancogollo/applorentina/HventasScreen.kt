@@ -8,9 +8,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,23 +36,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// import com.example.app_lorentina.R // Recuerda importar tu R
 
-// =================================================================
-// 1. PANTALLA HISTORIAL DE VENTAS (HventasScreen)
-// =================================================================
+// Si tu paquete es el mismo, este import de R es opcional. Déjalo si el IDE lo pide.
+import com.cristiancogollo.applorentina.R
 
+// ================================================================
+// 0) Enum del filtro
+// ================================================================
+enum class VentasFilter { CLIENTE, FECHA, CC }
+
+// ================================================================
+// 1) Pantalla Historial de Ventas
+// ================================================================
 @Composable
-fun HventasScreen(onBackClick: () -> Unit = {},
-                  onNewVentaClick: () -> Unit) {
+fun HventasScreen(
+    onBackClick: () -> Unit = {},
+    onNewVentaClick: () -> Unit
+) {
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
-    val colorCafeTexto = Color(0xFF6B4226) // Color para el título
     val colorGrisTexto = Color(0xFF5C5C5C)
 
     var searchQuery by remember { mutableStateOf("") }
+    var filtroSeleccionado by remember { mutableStateOf(VentasFilter.CLIENTE) }
 
-    // Datos de ventas de ejemplo
+    // Datos de ventas de ejemplo (Triple: Nº, Cliente, Monto)
     val ventas = listOf(
         Triple("001", "JUAN PEREZ", "$180.000"),
         Triple("002", "MARIA GOMEZ", "$120.000"),
@@ -44,6 +68,20 @@ fun HventasScreen(onBackClick: () -> Unit = {},
         Triple("004", "ANA LOPEZ", "$180.000"),
         Triple("005", "PEDRO RAMIREZ", "$90.000")
     )
+
+    // Orden dinámico según el filtro seleccionado
+    val ventasOrdenadas = remember(filtroSeleccionado, ventas) {
+        when (filtroSeleccionado) {
+            // Orden por nombre (second)
+            VentasFilter.CLIENTE -> ventas.sortedBy { it.second.lowercase() }
+            // Aquí usamos el primer campo (id como “FECHA” de maqueta). Cuando conectes con datos reales,
+            // cambia a la fecha real (Date/String parseado).
+            VentasFilter.FECHA -> ventas.sortedBy { it.first }
+            // Simulación de C.C.: aquí usarías tu campo de documento; como no está en el Triple,
+            // lo dejamos en third (monto) solo para demostrar el cambio de orden.
+            VentasFilter.CC -> ventas.sortedBy { it.third }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -64,27 +102,28 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Encabezado verde (Logo Lorentina)
+                    // Encabezado verde con botón back y logo
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                             .padding(vertical = 15.dp),
                         contentAlignment = Alignment.Center
-                    ) {Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 8.dp)
                     ) {
-                        IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Volver",
-                                tint = Color.White,
-                                modifier = Modifier.size(35.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                        ) {
+                            androidx.compose.material3.IconButton(onClick = onBackClick) {
+                                androidx.compose.material3.Icon(
+                                    imageVector = Icons.Filled.ArrowBack,
+                                    contentDescription = "Volver",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(35.dp)
+                                )
+                            }
                         }
-                    }
 
                         Image(
                             painter = painterResource(id = R.drawable.lorenita),
@@ -98,22 +137,28 @@ fun HventasScreen(onBackClick: () -> Unit = {},
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Título de la Pantalla
+                    // Título
                     Text(
                         text = "HISTORIAL DE VENTAS",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF5C5C5C)
+                        color = colorGrisTexto
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Barra de búsqueda (Buscar Venta)
+                    // Buscador
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { Text("BUSCAR VENTA....", color = Color.Gray.copy(alpha = 0.7f)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = colorVerdeClaro) },
+                        leadingIcon = {
+                            androidx.compose.material3.Icon(
+                                Icons.Filled.Search,
+                                contentDescription = "Buscar",
+                                tint = colorVerdeClaro
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
@@ -127,30 +172,44 @@ fun HventasScreen(onBackClick: () -> Unit = {},
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Filtros
+                    // Botones de filtro
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Usamos un nuevo componente de filtro para replicar el estilo de Historial de Ventas
-                        HventasFilterButton(text = "CLIENTE", isSelected = true, modifier = Modifier.weight(1f))
+                        HventasFilterButton(
+                            text = "CLIENTE",
+                            isSelected = filtroSeleccionado == VentasFilter.CLIENTE,
+                            onClick = { filtroSeleccionado = VentasFilter.CLIENTE },
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(text = "FECHA", isSelected = false, modifier = Modifier.weight(1f))
+                        HventasFilterButton(
+                            text = "FECHA",
+                            isSelected = filtroSeleccionado == VentasFilter.FECHA,
+                            onClick = { filtroSeleccionado = VentasFilter.FECHA },
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(text = "C.C", isSelected = false, modifier = Modifier.weight(1f))
+                        HventasFilterButton(
+                            text = "C.C",
+                            isSelected = filtroSeleccionado == VentasFilter.CC,
+                            onClick = { filtroSeleccionado = VentasFilter.CC },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de ventas
+                    // Lista de ventas (usa la lista ORDENADA)
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
                             .padding(horizontal = 24.dp)
                     ) {
-                        items(ventas) { (numVenta, nombre, monto) ->
+                        items(ventasOrdenadas) { (numVenta, nombre, monto) ->
                             VentaCard(
                                 numVenta = numVenta,
                                 nombreCliente = nombre,
@@ -160,13 +219,12 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                         }
                     }
 
-                    // Spacer para dejar espacio al FAB
-                    Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(80.dp)) // espacio para el FAB
                 }
 
-                // Botón flotante (FAB) - AGREGAR VENTA
+                // FAB Agregar Venta
                 FloatingActionButton(
-                    onClick =  onNewVentaClick,
+                    onClick = onNewVentaClick,
                     containerColor = colorVerdeClaro,
                     contentColor = Color.White,
                     shape = RoundedCornerShape(20.dp),
@@ -179,8 +237,8 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(
-                            Icons.Default.Add,
+                        androidx.compose.material3.Icon(
+                            Icons.Filled.Add,
                             contentDescription = "Agregar venta",
                             modifier = Modifier.size(60.dp)
                         )
@@ -198,18 +256,22 @@ fun HventasScreen(onBackClick: () -> Unit = {},
     }
 }
 
-// =================================================================
-// 2. COMPONENTES AUXILIARES
-// =================================================================
-
+// ================================================================
+// 2) Componentes auxiliares
+// ================================================================
 @Composable
-fun HventasFilterButton(text: String, isSelected: Boolean, modifier: Modifier = Modifier) {
+fun HventasFilterButton(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val containerColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
     val contentColor = if (isSelected) Color.White else Color(0xFF8AA100)
     val borderColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
 
     Button(
-        onClick = { },
+        onClick = onClick,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor
@@ -220,12 +282,11 @@ fun HventasFilterButton(text: String, isSelected: Boolean, modifier: Modifier = 
             brush = androidx.compose.ui.graphics.SolidColor(borderColor)
         ),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-        modifier = modifier.height(35.dp) // Altura ajustada para el mockup
+        modifier = modifier.height(35.dp) // altura según mockup
     ) {
         Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
-
 
 @Composable
 fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerdeClaro: Color) {
@@ -235,10 +296,9 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            // Borde verde claro igual al mockup
             .border(2.dp, colorVerdeClaro, RoundedCornerShape(10.dp)),
         shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // Sin sombra para un look plano
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
@@ -247,17 +307,14 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Columna 1: Número de Venta
             Text(
                 numVenta,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = colorGrisTexto,
-                modifier = Modifier.width(30.dp) // Ancho fijo para alinear
+                modifier = Modifier.width(30.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
-
-            // Columna 2: Nombre del Cliente (Expande)
             Text(
                 nombreCliente,
                 fontWeight = FontWeight.SemiBold,
@@ -265,8 +322,6 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
                 color = colorGrisTexto,
                 modifier = Modifier.weight(1f)
             )
-
-            // Columna 3: Monto
             Text(
                 monto,
                 fontWeight = FontWeight.Bold,
@@ -277,15 +332,16 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
     }
 }
 
-// =================================================================
-// 3. PREVIEW
-// =================================================================
-
+// ================================================================
+// 3) Preview
+// ================================================================
 @Preview(showBackground = true)
 @Composable
 fun HventasScreenPreview() {
     Surface(color = Color(0xFFEFEFEF)) {
-        HventasScreen(onBackClick = { /* No hace nada en Preview */ },
-            onNewVentaClick = { /* No hace nada en Preview */ })
+        HventasScreen(
+            onBackClick = { },
+            onNewVentaClick = { }
+        )
     }
 }
