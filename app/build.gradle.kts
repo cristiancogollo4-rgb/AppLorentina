@@ -69,13 +69,14 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    // ASEGÚRATE DE QUE ESTA LÍNEA ESTÉ PRESENTE:
+
     implementation("androidx.compose.material:material-icons-extended")
 
 
     implementation("io.coil-kt:coil-compose:2.6.0")
     //Firebase
     //auth
+    implementation("io.coil-kt:coil-gif:2.6.0")
 
     // --- Firebase (usa el BOM para compatibilidad) ---
     implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
