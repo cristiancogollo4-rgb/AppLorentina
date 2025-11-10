@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,30 +22,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// import com.example.app_lorentina.R // Recuerda importar tu R
-
-// =================================================================
-// 1. PANTALLA HISTORIAL DE VENTAS (HventasScreen)
-// =================================================================
+import androidx.lifecycle.viewmodel.compose.viewModel
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
-fun HventasScreen(onBackClick: () -> Unit = {},
-                  onNewVentaClick: () -> Unit) {
+fun HventasScreen(
+    onBackClick: () -> Unit = {},
+    onNewVentaClick: () -> Unit,
+    vm: VentasViewModel = viewModel()
+) {
+    val ui by vm.ui.collectAsState()
+
     val colorVerdeClaro = Color(0xFFC2D500)
     val colorVerdeOscuro = Color(0xFFB5CC00)
-    val colorCafeTexto = Color(0xFF6B4226) // Color para el título
     val colorGrisTexto = Color(0xFF5C5C5C)
-
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Datos de ventas de ejemplo
-    val ventas = listOf(
-        Triple("001", "JUAN PEREZ", "$180.000"),
-        Triple("002", "MARIA GOMEZ", "$120.000"),
-        Triple("003", "CARLOS RUIZ", "$250.000"),
-        Triple("004", "ANA LOPEZ", "$180.000"),
-        Triple("005", "PEDRO RAMIREZ", "$90.000")
-    )
+    val sdf = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val money = remember { NumberFormat.getCurrencyInstance(Locale("es","CO")) }
 
     Column(
         modifier = Modifier
@@ -64,28 +60,23 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Encabezado verde (Logo Lorentina)
+                    // Encabezado
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                             .padding(vertical = 15.dp),
                         contentAlignment = Alignment.Center
-                    ) {Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .padding(start = 8.dp)
                     ) {
-                        IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "Volver",
-                                tint = Color.White,
-                                modifier = Modifier.size(35.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                        ) {
+                            IconButton(onClick = onBackClick) {
+                                Icon(Icons.Filled.ArrowBack, contentDescription = "Volver", tint = Color.White, modifier = Modifier.size(35.dp))
+                            }
                         }
-                    }
-
                         Image(
                             painter = painterResource(id = R.drawable.lorenita),
                             contentDescription = "Logo Lorentina",
@@ -98,22 +89,16 @@ fun HventasScreen(onBackClick: () -> Unit = {},
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // Título de la Pantalla
-                    Text(
-                        text = "HISTORIAL DE VENTAS",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF5C5C5C)
-                    )
+                    Text("HISTORIAL DE VENTAS", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = colorGrisTexto)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Barra de búsqueda (Buscar Venta)
+                    // Buscador
                     OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        value = ui.query,
+                        onValueChange = vm::setQuery,
                         placeholder = { Text("BUSCAR VENTA....", color = Color.Gray.copy(alpha = 0.7f)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = colorVerdeClaro) },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = colorVerdeClaro) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp),
@@ -122,7 +107,8 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                             focusedBorderColor = colorVerdeClaro,
                             unfocusedBorderColor = colorVerdeClaro,
                             cursorColor = colorVerdeOscuro
-                        )
+                        ),
+                        singleLine = true
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -134,39 +120,65 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                             .padding(horizontal = 24.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Usamos un nuevo componente de filtro para replicar el estilo de Historial de Ventas
-                        HventasFilterButton(text = "CLIENTE", isSelected = true, modifier = Modifier.weight(1f))
+                        FilterButtonVentas(
+                            text = "CLIENTE",
+                            isSelected = ui.sort == VentasSort.CLIENTE,
+                            onClick = { vm.setSort(VentasSort.CLIENTE) },
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(text = "FECHA", isSelected = false, modifier = Modifier.weight(1f))
+                        FilterButtonVentas(
+                            text = "FECHA",
+                            isSelected = ui.sort == VentasSort.FECHA,
+                            onClick = { vm.setSort(VentasSort.FECHA) },
+                            modifier = Modifier.weight(1f)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
-                        HventasFilterButton(text = "C.C", isSelected = false, modifier = Modifier.weight(1f))
+                        FilterButtonVentas(
+                            text = "C.C",
+                            isSelected = ui.sort == VentasSort.CC,
+                            onClick = { vm.setSort(VentasSort.CC) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Lista de ventas
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 24.dp)
-                    ) {
-                        items(ventas) { (numVenta, nombre, monto) ->
-                            VentaCard(
-                                numVenta = numVenta,
-                                nombreCliente = nombre,
-                                monto = monto,
-                                colorVerdeClaro = colorVerdeClaro
-                            )
+                    // Lista
+                    when {
+                        ui.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = colorVerdeClaro)
+                        }
+                        ui.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(ui.error ?: "Error", color = MaterialTheme.colorScheme.error)
+                        }
+                        ui.filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                            Text("Sin resultados para \"${ui.query}\"", color = Color.Gray, modifier = Modifier.padding(top = 16.dp))
+                        }
+                        else -> LazyColumn(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 24.dp)
+                        ) {
+                            items(ui.filtered) { v ->
+                                VentaCardUI(
+                                    numVenta = v.idVenta.ifBlank { "—" },
+                                    nombreCliente = v.cliente?.nombreApellido ?: "Sin cliente",
+                                    monto = runCatching { money.format(v.precioTotal) }.getOrDefault("$${v.precioTotal}"),
+                                    fecha = runCatching { sdf.format(v.fechaVenta) }.getOrDefault(""),
+                                    cc = (v.cliente?.cedula ?: 0L).toString(),
+                                    colorVerdeClaro = colorVerdeClaro
+                                )
+                            }
                         }
                     }
 
-                    // Spacer para dejar espacio al FAB
                     Spacer(modifier = Modifier.height(80.dp))
                 }
 
-                // Botón flotante (FAB) - AGREGAR VENTA
+                // FAB
                 FloatingActionButton(
-                    onClick =  onNewVentaClick,
+                    onClick = onNewVentaClick,
                     containerColor = colorVerdeClaro,
                     contentColor = Color.White,
                     shape = RoundedCornerShape(20.dp),
@@ -175,22 +187,9 @@ fun HventasScreen(onBackClick: () -> Unit = {},
                         .padding(end = 24.dp, bottom = 24.dp)
                         .size(90.dp)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "Agregar venta",
-                            modifier = Modifier.size(60.dp)
-                        )
-                        Text(
-                            "AGREGAR VENTA",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            lineHeight = 10.sp
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Filled.Add, contentDescription = "Agregar venta", modifier = Modifier.size(60.dp))
+                        Text("AGREGAR VENTA", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color.White, lineHeight = 10.sp)
                     }
                 }
             }
@@ -198,47 +197,50 @@ fun HventasScreen(onBackClick: () -> Unit = {},
     }
 }
 
-// =================================================================
-// 2. COMPONENTES AUXILIARES
-// =================================================================
-
 @Composable
-fun HventasFilterButton(text: String, isSelected: Boolean, modifier: Modifier = Modifier) {
+private fun FilterButtonVentas(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val containerColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
     val contentColor = if (isSelected) Color.White else Color(0xFF8AA100)
     val borderColor = if (isSelected) Color(0xFFB5CC00) else Color(0xFFEFF5C9)
 
     Button(
-        onClick = { },
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
         shape = RoundedCornerShape(10.dp),
         border = ButtonDefaults.outlinedButtonBorder.copy(
             width = 1.dp,
             brush = androidx.compose.ui.graphics.SolidColor(borderColor)
         ),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-        modifier = modifier.height(35.dp) // Altura ajustada para el mockup
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+        modifier = modifier.height(35.dp)
     ) {
         Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
-
 @Composable
-fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerdeClaro: Color) {
+private fun VentaCardUI(
+    numVenta: String,
+    nombreCliente: String,
+    monto: String,
+    fecha: String,
+    cc: String,
+    colorVerdeClaro: Color
+) {
     val colorGrisTexto = Color(0xFF5C5C5C)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            // Borde verde claro igual al mockup
             .border(2.dp, colorVerdeClaro, RoundedCornerShape(10.dp)),
         shape = RoundedCornerShape(10.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // Sin sombra para un look plano
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
@@ -247,45 +249,25 @@ fun VentaCard(numVenta: String, nombreCliente: String, monto: String, colorVerde
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Columna 1: Número de Venta
             Text(
-                numVenta,
+                numVenta.takeLast(3).padStart(3, '0'),
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
                 color = colorGrisTexto,
-                modifier = Modifier.width(30.dp) // Ancho fijo para alinear
+                modifier = Modifier.width(40.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // Columna 2: Nombre del Cliente (Expande)
-            Text(
-                nombreCliente,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = colorGrisTexto,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Columna 3: Monto
-            Text(
-                monto,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = colorGrisTexto
-            )
+            Spacer(Modifier.width(10.dp))
+            Text(nombreCliente, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colorGrisTexto, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(monto, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colorGrisTexto)
+                if (fecha.isNotBlank()) Text(fecha, fontSize = 12.sp, color = Color.Gray)
+            }
         }
     }
 }
 
-// =================================================================
-// 3. PREVIEW
-// =================================================================
-
 @Preview(showBackground = true)
 @Composable
 fun HventasScreenPreview() {
-    Surface(color = Color(0xFFEFEFEF)) {
-        HventasScreen(onBackClick = { /* No hace nada en Preview */ },
-            onNewVentaClick = { /* No hace nada en Preview */ })
-    }
+    HventasScreen(onNewVentaClick = { })
 }
