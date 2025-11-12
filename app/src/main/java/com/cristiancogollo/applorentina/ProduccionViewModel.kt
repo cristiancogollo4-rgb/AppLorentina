@@ -1,5 +1,6 @@
 package com.cristiancogollo.applorentina
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,6 +34,7 @@ class ProduccionViewModel : ViewModel() {
 
     init { cargarProductos() }
 
+    // === LECTURA EN TIEMPO REAL SOLO "en producción"
     fun cargarProductos() {
         db.collection("Productos")
             .whereEqualTo("estado", "en producción")
@@ -47,22 +49,26 @@ class ProduccionViewModel : ViewModel() {
             }
     }
 
+    // === Crear producto en Firestore
     fun crearProducto() {
         val data = _formState.value
+
         if (data.referencia.isBlank() || data.color.isBlank()) {
             _formState.value = data.copy(mensaje = "Referencia y color son obligatorios")
             return
         }
 
+        val imagenUri = colorToDrawableAndroidResourceUri(data.color)
+
         val producto = hashMapOf(
-            "referencia" to data.referencia,
-            "nombreModelo" to data.nombreModelo,
-            "color" to data.color,
-            "descripcion" to data.descripcion,
+            "referencia" to data.referencia.trim(),
+            "nombreModelo" to data.nombreModelo.trim(),
+            "color" to data.color.trim(),
+            "descripcion" to data.descripcion.trim(),
             "precioDetal" to data.precioDetal,
             "precioMayor" to data.precioMayor,
-            "estado" to "en producción",
-            "imagenUrl" to data.imagenUrl,
+            "estado" to (data.estado.ifBlank { "en producción" }),
+            "imagenUrl" to imagenUri, // URI android.resource para Coil
             "stockPorTalla" to getDefaultStockMap(),
             "timestamp" to Timestamp.now()
         )
@@ -77,6 +83,7 @@ class ProduccionViewModel : ViewModel() {
         }
     }
 
+    // === Cambiar estado a "en stock" por referencia
     fun actualizarEstadoAStock(referencia: String) {
         viewModelScope.launch {
             try {
@@ -94,10 +101,27 @@ class ProduccionViewModel : ViewModel() {
         }
     }
 
+    // === Updates para el form
     fun updateReferencia(v: String) { _formState.value = _formState.value.copy(referencia = v) }
     fun updateColor(v: String) { _formState.value = _formState.value.copy(color = v) }
     fun updateDescripcion(v: String) { _formState.value = _formState.value.copy(descripcion = v) }
     fun updatePrecioDetal(v: String) { _formState.value = _formState.value.copy(precioDetal = v.toDoubleOrNull() ?: 0.0) }
     fun updatePrecioMayor(v: String) { _formState.value = _formState.value.copy(precioMayor = v.toDoubleOrNull() ?: 0.0) }
     fun updateNombre(v: String) { _formState.value = _formState.value.copy(nombreModelo = v) }
+    fun updateEstado(v: String) { _formState.value = _formState.value.copy(estado = v) }
+
+    // === Mapear color → drawable → android.resource:// URI (para Coil)
+    private fun colorToDrawableAndroidResourceUri(color: String): String {
+        val key = when (color.trim().uppercase()) {
+            "COÑAC", "CONAC", "COÑAC " -> "zapato1"
+            "BLANCO" -> "zapato2"
+            "NEGRO"  -> "zapato3"
+            else     -> "" // sin imagen conocida
+        }
+        if (key.isBlank()) return ""
+
+        // android.resource://<package>/drawable/<name>
+        val pkg = "com.cristiancogollo.applorentina"
+        return Uri.parse("android.resource://$pkg/drawable/$key").toString()
+    }
 }

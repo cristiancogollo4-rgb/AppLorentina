@@ -42,7 +42,10 @@ class InventarioAdminViewModel : ViewModel() {
     fun actualizarStock(ref: String, talla: String, valor: Int) {
         viewModelScope.launch {
             try {
-                val query = db.collection("Productos").whereEqualTo("referencia", ref).get().await()
+                val query = db.collection("Productos")
+                    .whereEqualTo("referencia", ref)
+                    .get().await()
+
                 for (doc in query.documents) {
                     val stockActual = doc.get("stockPorTalla") as? Map<String, Long> ?: emptyMap()
                     val actualizado = stockActual.toMutableMap()

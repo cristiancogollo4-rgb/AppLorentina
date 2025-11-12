@@ -15,26 +15,31 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
 fun ProduccionAdmin(
     onBackClick: () -> Unit = {},
-    navTo: (String) -> Unit = {}
+    navTo: (String) -> Unit = {},
+    viewModel: ProduccionViewModel = viewModel()
 ) {
+    val productos by viewModel.productos.collectAsState()
+    var search by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // 🩶 Barra superior gris con imagen y botón de volver
+        // Barra superior
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,9 +70,8 @@ fun ProduccionAdmin(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Título
         Text(
             text = "PRODUCCIÓN",
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -76,12 +80,12 @@ fun ProduccionAdmin(
             fontSize = 22.sp
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Barra de búsqueda
+        // Búsqueda
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = search,
+            onValueChange = { search = it },
             placeholder = { Text("Buscar referencia...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
             colors = OutlinedTextFieldDefaults.colors(
@@ -96,27 +100,28 @@ fun ProduccionAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Lista de productos
-        val referencias = listOf("1063", "1073", "1093")
-        val colores = listOf("COÑAC", "BLANCO", "NEGRO")
-        val imagenes = listOf(R.drawable.zapato1, R.drawable.zapato2, R.drawable.zapato3)
+        // Filtrados por búsqueda
+        val filtrados = productos.filter {
+            it.referencia.contains(search, ignoreCase = true) ||
+                    it.color.contains(search, ignoreCase = true) ||
+                    it.nombreModelo.contains(search, ignoreCase = true)
+        }
 
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 12.dp)
         ) {
-            items(referencias.indices.toList()) { index ->
-                ProduccionItem(
-                    referencia = referencias[index],
-                    colorZapato = colores[index],
-                    imagenId = imagenes[index]
+            items(filtrados) { producto ->
+                ProduccionItemFirestore(
+                    producto = producto,
+                    viewModel = viewModel
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
 
-        // 🔹 Botón inferior — redirige a AgregarTareaScreenAdmin
+        // Botón AGREGAR
         Button(
             onClick = { navTo(Screen.AgregarTareaAdmin.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
@@ -127,25 +132,23 @@ fun ProduccionAdmin(
                 .height(60.dp)
                 .padding(bottom = 20.dp)
         ) {
-            Text(
-                text = "AGREGAR",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Text("AGREGAR", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
-fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
+private fun ProduccionItemFirestore(
+    producto: Producto,
+    viewModel: ProduccionViewModel
+) {
     var expandedTalla by remember { mutableStateOf(false) }
     var tallaSeleccionada by remember { mutableStateOf("TALLA") }
 
     var expandedEstado by remember { mutableStateOf(false) }
-    var estadoSeleccionado by remember { mutableStateOf("ESTADO") }
+    var estadoSeleccionado by remember { mutableStateOf(producto.estado.ifBlank { "en producción" }) }
 
-    val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla")
+    val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla", "en stock")
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -162,25 +165,26 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen del zapato
+            // Imagen (Coil soporta android.resource:// o url)
+            val painter = rememberAsyncImagePainter(
+                model = if (producto.imagenUrl.isNotBlank()) producto.imagenUrl else R.drawable.ic_launcher_foreground
+            )
             Image(
-                painter = painterResource(id = imagenId),
+                painter = painter,
                 contentDescription = "Zapato",
-                modifier = Modifier
-                    .size(70.dp)
-                    .padding(8.dp)
+                modifier = Modifier.size(70.dp).padding(8.dp)
             )
 
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.Start
             ) {
-                Text("Ref: $referencia", fontWeight = FontWeight.Bold)
-                Text(colorZapato, color = Color.Gray)
+                Text("Ref: ${producto.referencia}", fontWeight = FontWeight.Bold)
+                Text("Color: ${producto.color}", color = Color.Gray, fontSize = 13.sp)
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // 🔸 Selector de talla
+                // Selector talla (visual)
                 Box {
                     Button(
                         onClick = { expandedTalla = !expandedTalla },
@@ -189,17 +193,10 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
                         modifier = Modifier.height(38.dp)
                     ) {
                         Text(tallaSeleccionada, color = Color.White)
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Seleccionar talla",
-                            tint = Color.White
-                        )
+                        Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
                     }
 
-                    DropdownMenu(
-                        expanded = expandedTalla,
-                        onDismissRequest = { expandedTalla = false }
-                    ) {
+                    DropdownMenu(expanded = expandedTalla, onDismissRequest = { expandedTalla = false }) {
                         (35..42).forEach { talla ->
                             DropdownMenuItem(
                                 text = { Text("Talla $talla") },
@@ -213,9 +210,9 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
                 }
             }
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // 🔸 Selector de estado
+            // Selector de estado (puede pasar a "en stock")
             Box {
                 Button(
                     onClick = { expandedEstado = !expandedEstado },
@@ -224,23 +221,19 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
                     modifier = Modifier.height(38.dp)
                 ) {
                     Text(estadoSeleccionado, color = Color.White)
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Seleccionar estado",
-                        tint = Color.White
-                    )
+                    Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
                 }
 
-                DropdownMenu(
-                    expanded = expandedEstado,
-                    onDismissRequest = { expandedEstado = false }
-                ) {
+                DropdownMenu(expanded = expandedEstado, onDismissRequest = { expandedEstado = false }) {
                     estados.forEach { estado ->
                         DropdownMenuItem(
                             text = { Text(estado) },
                             onClick = {
                                 estadoSeleccionado = estado
                                 expandedEstado = false
+                                if (estado == "en stock") {
+                                    viewModel.actualizarEstadoAStock(producto.referencia)
+                                }
                             }
                         )
                     }
@@ -253,7 +246,5 @@ fun ProduccionItem(referencia: String, colorZapato: String, imagenId: Int) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ProduccionPreview() {
-    AppLorentinaTheme {
-        ProduccionAdmin()
-    }
+    AppLorentinaTheme { ProduccionAdmin() }
 }
