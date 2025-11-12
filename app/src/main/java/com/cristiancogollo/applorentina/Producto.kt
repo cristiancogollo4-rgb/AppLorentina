@@ -9,6 +9,9 @@ data class Producto(
     val precioDetal: Double = 0.0,
     val precioMayor: Double = 0.0,
 
+    // 🟢 Estado del producto: "en producción", "en stock", "agotado", etc.
+    val estado: String = "en producción", // 🔥 NUEVO CAMPO (para control de fases)
+
     // 🟢 CLAVE: Mapa donde la clave es la talla ("35" a "42") y el valor es la cantidad
     val stockPorTalla: Map<String, Int> = getDefaultStockMap(),
 
