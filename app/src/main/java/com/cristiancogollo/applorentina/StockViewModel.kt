@@ -11,6 +11,8 @@ data class StockUiState(
     val productos: List<Producto> = emptyList(), // Lista completa del inventario
     val filteredProductos: List<Producto> = emptyList(), // Lista filtrada para la UI
     val searchQuery: String = "",
+    val activeFilter: String = "REFE", // Puede ser "REFE", "COLOR", "TALLA"
+    val selectedTallaFilter: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -30,12 +32,14 @@ class StockViewModel : ViewModel() {
     }
 
     /**
-     * Carga y escucha en tiempo real los productos desde Firestore.
+     * Carga y escucha en tiempo real los productos desde Firestore, FILTRANDO por estado "en stock".
      */
     private fun fetchProductos() {
         _uiState.update { it.copy(isLoading = true) }
 
-        db.collection("Productos") // Asumimos que tienes una colección llamada "Inventario"
+        db.collection("Productos")
+            // 🟢 FILTRO AGREGADO: Solo carga productos con estado "en stock"
+            .whereEqualTo("estado", "en stock")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("StockViewModel", "Error al cargar inventario: ${error.message}", error)
@@ -74,26 +78,45 @@ class StockViewModel : ViewModel() {
 
     /**
      * 🟢 FUNCIÓN DE BÚSQUEDA Y FILTRADO
-     * Busca por nombre o ID del producto.
+     * Busca por referencia, modelo o color.
      */
     private fun applyFilter(query: String) {
         val trimmedQuery = query.trim()
+        val currentState = uiState.value
 
-        // 1. Actualiza el estado de la búsqueda (se hace aquí después del debounce)
+        // 1. Actualiza el estado de la búsqueda
         _uiState.update { it.copy(searchQuery = query) }
 
-        if (trimmedQuery.isBlank()) {
-            _uiState.update { it.copy(filteredProductos = it.productos) }
-            return
+        // 2. Comienza con todos los productos de stock
+        var filtered = currentState.productos
+
+        // 3. Aplicar Filtro Activo sobre el texto de búsqueda (trimmedQuery)
+        if (trimmedQuery.isNotBlank()) {
+            filtered = filtered.filter { producto ->
+                val q = trimmedQuery.lowercase()
+                when (currentState.activeFilter) {
+                    "REFE" -> producto.referencia.startsWith(q, ignoreCase = true)
+                    "COLOR" -> producto.color.startsWith(q, ignoreCase = true)
+                    "TALLA" -> {
+                        // Si se está filtrando por TALLA, se busca la talla en el mapa de stock
+                        // y debe tener stock > 0.
+                        val stock = producto.stockPorTalla[q] ?: 0
+                        stock > 0
+                    }
+                    else -> false // Caso por defecto
+                }
+            }
         }
 
-        val filtered = uiState.value.productos.filter { producto ->
-            val q = trimmedQuery.lowercase()
-
-            // Filtra si la referencia, el nombre del modelo O el color COINCIDEN con el inicio de la búsqueda.
-            producto.referencia.startsWith(q, ignoreCase = true) ||
-                    producto.nombreModelo.startsWith(q, ignoreCase = true) ||
-                    producto.color.startsWith(q, ignoreCase = true)
+        // 4. Aplicar filtro específico de talla (si está activo y seleccionado)
+        // Esto es útil si quieres un Dropdown en la UI para seleccionar la talla
+        // y mostrar solo los productos que tengan esa talla con stock > 0.
+        val selectedTalla = currentState.selectedTallaFilter
+        if (currentState.activeFilter == "TALLA" && selectedTalla != null) {
+            filtered = filtered.filter { producto ->
+                val stock = producto.stockPorTalla[selectedTalla] ?: 0
+                stock > 0
+            }
         }
 
         _uiState.update { it.copy(filteredProductos = filtered) }
@@ -108,4 +131,26 @@ class StockViewModel : ViewModel() {
         // Envía el valor al flow para que se aplique el debounce
         _searchQueryFlow.value = query
     }
+
+    fun onFilterTypeChange(filterType: String) {
+        // Si el filtro es por talla, reseteamos la talla seleccionada
+        if (filterType != "TALLA") {
+            _uiState.update { it.copy(activeFilter = filterType, selectedTallaFilter = null) }
+        } else {
+            _uiState.update { it.copy(activeFilter = filterType) }
+        }
+        // Re-aplica el filtro inmediatamente
+        applyFilter(uiState.value.searchQuery)
+    }
+
+    /**
+     * Actualiza la talla específica seleccionada cuando el filtro activo es TALLA.
+     */
+    fun onTallaFilterChange(talla: String?) {
+        _uiState.update { it.copy(selectedTallaFilter = talla) }
+        // Re-aplica el filtro
+        applyFilter(uiState.value.searchQuery)
+    }
 }
+
+

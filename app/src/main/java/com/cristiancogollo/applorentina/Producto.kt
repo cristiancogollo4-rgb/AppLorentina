@@ -1,22 +1,22 @@
 package com.cristiancogollo.applorentina
 
 data class Producto(
-    // 🟢 CLAVE: Referencia o Nombre (para la búsqueda)
+    val id: String = "", // ID del documento de Firestore
+    // Referencia o Nombre (para la búsqueda)
     val referencia: String = "",
-    val nombreModelo: String = "", // Nombre del modelo (ej: 'Tenis Urbano')
+    val nombreModelo: String = "", // Nombre del modelo
     val color: String = "",
     val descripcion: String = "",
     val precioDetal: Double = 0.0,
     val precioMayor: Double = 0.0,
 
     // 🟢 Estado del producto: "en producción", "en stock", "agotado", etc.
-    val estado: String = "en producción", // 🔥 NUEVO CAMPO (para control de fases)
+    val estado: String = "en producción", //
 
     // 🟢 CLAVE: Mapa donde la clave es la talla ("35" a "42") y el valor es la cantidad
     val stockPorTalla: Map<String, Int> = getDefaultStockMap(),
 
-    val imagenUrl: String = "",
-    val categoria: String = "" // (ej: 'Tenis', 'Botín', 'Sandalia')
+    val imagenUrl: String = ""
 )
 
 // Función auxiliar para inicializar el mapa en Firestore con tallas de 35 a 42 en 0.

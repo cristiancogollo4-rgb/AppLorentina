@@ -67,7 +67,10 @@ fun StockScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(ColorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(
+                            ColorVerdeClaro,
+                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        )
                         .padding(vertical = 15.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -114,8 +117,19 @@ fun StockScreen(
                     value = uiState.searchQuery,
                     // 🟢 Usar la función de cambio del ViewModel
                     onValueChange = viewModel::onSearchQueryChange,
-                    placeholder = { Text("BUSCAR REFERENCIA....", color = Color.Gray.copy(alpha = 0.7f)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = ColorVerdeClaro) },
+                    placeholder = {
+                        Text(
+                            "BUSCAR REFERENCIA....",
+                            color = Color.Gray.copy(alpha = 0.7f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = ColorVerdeClaro
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
@@ -136,23 +150,47 @@ fun StockScreen(
                         .padding(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    StockFilterButton(text = "REFE.", isSelected = true, modifier = Modifier.weight(1f))
+                    StockFilterButton(
+                        text = "REFE.",
+                        isSelected = uiState.activeFilter == "REFE",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("REFE") }
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    StockFilterButton(text = "COLOR", isSelected = false, modifier = Modifier.weight(1f))
+                    StockFilterButton(
+                        text = "COLOR",
+                        isSelected = uiState.activeFilter == "COLOR",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("COLOR") }
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
-                    StockFilterButton(text = "TALLA", isSelected = false, modifier = Modifier.weight(1f))
+                    StockFilterButton(
+                        text = "TALLA",
+                        isSelected = uiState.activeFilter == "TALLA",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("TALLA") }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 5. Lista de Inventario (LazyColumn)
                 if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp), color = ColorVerdeOscuro)
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(16.dp),
+                        color = ColorVerdeOscuro
+                    )
                 } else if (uiState.errorMessage != null) {
-                    Text(uiState.errorMessage!!, color = Color.Red, modifier = Modifier.padding(16.dp))
+                    Text(
+                        uiState.errorMessage!!,
+                        color = Color.Red,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 } else if (uiState.filteredProductos.isEmpty() && uiState.searchQuery.isNotBlank()) {
-                    Text("No se encontraron resultados para '${uiState.searchQuery}'.",
-                        color = ColorGrisTexto, modifier = Modifier.padding(16.dp))
+                    Text(
+                        "No se encontraron resultados para '${uiState.searchQuery}'.",
+                        color = ColorGrisTexto, modifier = Modifier.padding(16.dp)
+                    )
                 } else {
                     LazyColumn(
                         modifier = Modifier
@@ -177,12 +215,17 @@ fun StockScreen(
 // -----------------------------------------------------------------
 
 @Composable
-fun StockFilterButton(text: String, isSelected: Boolean, modifier: Modifier = Modifier) {
+fun StockFilterButton(
+    text: String,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     val containerColor = if (isSelected) ColorVerdeOscuro else Color(0xFFEFF5C9)
     val contentColor = if (isSelected) Color.White else Color(0xFF8AA100)
     val borderColor = if (isSelected) ColorVerdeOscuro else Color(0xFFEFF5C9)
     Button(
-        onClick = { /* Lógica de filtro */ },
+        onClick = onClick,
         colors = ButtonDefaults.buttonColors(
             containerColor = containerColor,
             contentColor = contentColor
@@ -303,7 +346,9 @@ fun StockCard(producto: Producto) {
                 Image(
                     painter = painter,
                     contentDescription = producto.nombreModelo,
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
             }

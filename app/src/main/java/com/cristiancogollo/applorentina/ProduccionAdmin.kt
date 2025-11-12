@@ -6,10 +6,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,11 +22,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
+
+// Asumiendo que esta es la constante definida globalmente
+
+
 
 @Composable
 fun ProduccionAdmin(
@@ -32,6 +42,12 @@ fun ProduccionAdmin(
 ) {
     val productos by viewModel.productos.collectAsState()
     var search by remember { mutableStateOf("") }
+
+    // 🟢 ESTADO DEL DIÁLOGO: Almacena el ID del producto que se está editando
+    var stockEditProductId by remember { mutableStateOf<String?>(null) }
+
+    // 🟢 Producto a editar (busca en la lista actual de productos)
+    val productoToEdit = productos.find { it.id == stockEditProductId }
 
     Column(
         modifier = Modifier
@@ -114,7 +130,9 @@ fun ProduccionAdmin(
             items(filtrados) { producto ->
                 ProduccionItemFirestore(
                     producto = producto,
-                    viewModel = viewModel
+                    viewModel = viewModel,
+                    // 🟢 Pasa la función para abrir el diálogo de edición
+                    onEditStockClick = { id -> stockEditProductId = id }
                 )
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -139,20 +157,48 @@ fun ProduccionAdmin(
             )
         }
     }
+
+    // 🟢 DIÁLOGO DE EDICIÓN DE STOCK (Se muestra si hay un producto seleccionado)
+    if (productoToEdit != null) {
+        EditStockDialog(
+            producto = productoToEdit,
+            onDismiss = { stockEditProductId = null }, // Cerrar el diálogo
+            onSave = { newStockMap, newImageUrl ->
+                viewModel.updateProductoData(
+                    id = productoToEdit.id,
+                    newStockMap = newStockMap,
+                    newImageUrl = newImageUrl
+                )
+                stockEditProductId = null // Cerrar al guardar
+            }
+        )
+    }
 }
 
+// -----------------------------------------------------------------
+// COMPONENTE ITEM DE PRODUCCIÓN
+// -----------------------------------------------------------------
 @Composable
 fun ProduccionItemFirestore(
     producto: Producto,
-    viewModel: ProduccionViewModel
+    viewModel: ProduccionViewModel,
+    onEditStockClick: (String) -> Unit // 🟢 Nuevo callback
 ) {
-    var expandedTalla by remember { mutableStateOf(false) }
-    var tallaSeleccionada by remember { mutableStateOf("TALLA") }
-
     var expandedEstado by remember { mutableStateOf(false) }
-    var estadoSeleccionado by remember { mutableStateOf(producto.estado) }
+    // Usamos el estado actual del producto, pero capitalizado
+    var estadoSeleccionado by remember(producto.estado) { mutableStateOf(producto.estado.replaceFirstChar { it.uppercase() }) }
 
-    val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla", "en stock")
+    // Se asegura de que los nombres de los estados se muestren capitalizados en el menú
+    val estadosDisplay = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla", "En stock")
+    // Se mapea a minúsculas para comparaciones internas y envío al VM
+    val estadosMap = mapOf(
+        "Corte" to "corte",
+        "Armado" to "armado",
+        "Costura" to "costura",
+        "Soldadura" to "soladura",
+        "Emplantilla" to "emplantillado",
+        "En stock" to "en stock"
+    )
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -169,7 +215,8 @@ fun ProduccionItemFirestore(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 🖼️ Imagen del zapato
+            // 🖼️ Imagen del zapato (Se puede usar Coil o Glide aquí para cargar desde URL)
+            // Por ahora, solo muestra un drawable de placeholder
             val drawableId = when {
                 producto.imagenUrl.contains("zapato1", ignoreCase = true) -> R.drawable.zapato1
                 producto.imagenUrl.contains("zapato2", ignoreCase = true) -> R.drawable.zapato2
@@ -193,31 +240,17 @@ fun ProduccionItemFirestore(
                 Text(producto.color, color = Color.Gray, fontSize = 13.sp)
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 🔸 Selector de talla (solo visual)
+                // 🔸 Botón para Editar Stock (TALLAS Y URL)
                 Box {
                     Button(
-                        onClick = { expandedTalla = !expandedTalla },
+                        onClick = { onEditStockClick(producto.id) }, // 🟢 Abre el diálogo de edición
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
                         shape = RoundedCornerShape(6.dp),
                         modifier = Modifier.height(38.dp)
                     ) {
-                        Text(tallaSeleccionada, color = Color.White)
-                        Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
-                    }
-
-                    DropdownMenu(
-                        expanded = expandedTalla,
-                        onDismissRequest = { expandedTalla = false }
-                    ) {
-                        (35..42).forEach { talla ->
-                            DropdownMenuItem(
-                                text = { Text("Talla $talla") },
-                                onClick = {
-                                    tallaSeleccionada = "Talla $talla"
-                                    expandedTalla = false
-                                }
-                            )
-                        }
+                        val totalStock = producto.stockPorTalla.values.sum()
+                        Text("Stock: $totalStock", color = Color.White)
+                        Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -240,15 +273,16 @@ fun ProduccionItemFirestore(
                     expanded = expandedEstado,
                     onDismissRequest = { expandedEstado = false }
                 ) {
-                    estados.forEach { estado ->
+                    estadosDisplay.forEach { estadoDisplay ->
                         DropdownMenuItem(
-                            text = { Text(estado) },
+                            text = { Text(estadoDisplay) },
                             onClick = {
-                                estadoSeleccionado = estado
+                                estadoSeleccionado = estadoDisplay
                                 expandedEstado = false
-                                if (estado == "en stock") {
-                                    viewModel.actualizarEstadoAStock(producto.referencia)
-                                }
+
+                                // Llama al VM con el ID y el valor en minúsculas
+                                val estadoValue = estadosMap[estadoDisplay] ?: "corte"
+                                viewModel.updateEstadoProducto(producto.id, estadoValue)
                             }
                         )
                     }
@@ -258,10 +292,137 @@ fun ProduccionItemFirestore(
     }
 }
 
+
+// -----------------------------------------------------------------
+// 🟢 NUEVO COMPONENTE: DIÁLOGO PARA EDITAR EL STOCK Y LA IMAGEN
+// -----------------------------------------------------------------
+@Composable
+fun EditStockDialog(
+    producto: Producto,
+    onDismiss: () -> Unit,
+    onSave: (newStockMap: Map<String, Int>, newImageUrl: String) -> Unit
+) {
+    // Estado local para la URL
+    var currentImageUrl by remember { mutableStateOf(producto.imagenUrl) }
+
+    // Estado local para los inputs de stock (String para manejar la edición)
+    val editableStock = remember {
+        mutableStateMapOf<String, String>().apply {
+            producto.stockPorTalla.forEach { (talla, stock) ->
+                this[talla] = stock.toString()
+            }
+            // Asegurar que todas las tallas (35 a 42) estén presentes
+            for (talla in 35..42) {
+                if (!this.containsKey(talla.toString())) {
+                    this[talla.toString()] = "0"
+                }
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Editar Stock: ${producto.referencia}") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                // Input para URL de Imagen (opcional)
+                Text("URL de Imagen (Opcional)", fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = currentImageUrl,
+                    onValueChange = { currentImageUrl = it },
+                    singleLine = true,
+                    label = { Text("Link de Google Drive/Imagen") },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                )
+
+                Text("Modificar Cantidades por Talla:", fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(Modifier.fillMaxWidth()) {
+                    // Columna 1 (35-38)
+                    Column(Modifier.weight(1f)) {
+                        (35..38).forEach { talla ->
+                            StockEditField(
+                                talla = talla.toString(),
+                                stock = editableStock[talla.toString()] ?: "0",
+                                onStockChange = { newValue ->
+                                    editableStock[talla.toString()] = newValue
+                                }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    // Columna 2 (39-42)
+                    Column(Modifier.weight(1f)) {
+                        (39..42).forEach { talla ->
+                            StockEditField(
+                                talla = talla.toString(),
+                                stock = editableStock[talla.toString()] ?: "0",
+                                onStockChange = { newValue ->
+                                    editableStock[talla.toString()] = newValue
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    // 1. Procesar el stock
+                    val newStockMap = editableStock
+                        .mapValues { (_, value) -> value.toIntOrNull() ?: 0 }
+                        .filterValues { it >= 0 }
+
+                    // 2. Guardar ambos datos
+                    onSave(newStockMap, currentImageUrl)
+                }
+            ) {
+                Text("Guardar")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+// 🟢 COMPONENTE AUXILIAR PARA EL CAMPO DE STOCK EN EL DIÁLOGO
+@Composable
+fun StockEditField(talla: String, stock: String, onStockChange: (String) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+    ) {
+        Text("T $talla:", Modifier.width(40.dp))
+        OutlinedTextField(
+            value = stock,
+            onValueChange = { newValue ->
+                if (newValue.all { it.isDigit() } || newValue.isEmpty()) {
+                    onStockChange(newValue)
+                }
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, textAlign = TextAlign.Center),
+            modifier = Modifier.weight(1f).height(45.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFFBDBDBD),
+                unfocusedBorderColor = Color(0xFFBDBDBD)
+            ),
+        )
+    }
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ProduccionPreview() {
     AppLorentinaTheme {
-        ProduccionAdmin()
+        // En un caso real, necesitarías un MockViewModel para que el Preview funcione
     }
 }
