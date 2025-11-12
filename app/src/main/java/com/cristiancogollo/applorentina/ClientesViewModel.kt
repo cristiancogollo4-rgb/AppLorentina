@@ -2,6 +2,7 @@ package com.cristiancogollo.applorentina
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +17,10 @@ data class ClientesUiState(
     val searchQuery: String = "",
     val filterType: FilterType = FilterType.NOMBRE,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showAddDialog: Boolean = false,      // controlar diálogo agregar
+    val selectedCliente: Cliente? = null,     // para ver detalles
+    val showDetailsDialog: Boolean = false    // controlar detalles
 )
 
 class ClientesViewModel : ViewModel() {
@@ -27,6 +31,9 @@ class ClientesViewModel : ViewModel() {
 
     init { fetchClientes() }
 
+    // -------------------------
+    // Realtime fetch
+    // -------------------------
     fun fetchClientes() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
@@ -34,9 +41,7 @@ class ClientesViewModel : ViewModel() {
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e("ClientesViewModel", "❌ Error escuchando cambios: ${error.message}")
-                    _uiState.update {
-                        it.copy(isLoading = false, errorMessage = "Error al escuchar datos: ${error.message}")
-                    }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = "Error al escuchar datos: ${error.message}") }
                     return@addSnapshotListener
                 }
 
@@ -51,10 +56,10 @@ class ClientesViewModel : ViewModel() {
                         }
                     }
 
-                    _uiState.update {
-                        it.copy(
+                    _uiState.update { current ->
+                        current.copy(
                             clientes = clientesList,
-                            filteredClientes = applyFilterList(clientesList, it.searchQuery, it.filterType),
+                            filteredClientes = applyFilterList(clientesList, current.searchQuery, current.filterType),
                             isLoading = false,
                             errorMessage = null
                         )
@@ -65,6 +70,9 @@ class ClientesViewModel : ViewModel() {
             }
     }
 
+    // -------------------------
+    // Search/Filter
+    // -------------------------
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         applyFilter()
@@ -100,6 +108,43 @@ class ClientesViewModel : ViewModel() {
         }
     }
 
+    // -------------------------
+    // CRUD
+    // -------------------------
+    fun addCliente(
+        nombreApellido: String,
+        cedula: String,
+        telefono: String,
+        correo: String,
+        departamento: String,
+        municipio: String,
+        tipoCliente: Boolean,
+        onResult: (Boolean, String?) -> Unit
+    ) {
+        val cedulaLong = cedula.toLongOrNull()
+        val telLong = telefono.toLongOrNull()
+        if (nombreApellido.isBlank() || cedulaLong == null || telLong == null) {
+            onResult(false, "Nombre, cédula y teléfono son obligatorios y deben ser válidos.")
+            return
+        }
+
+        val data = hashMapOf(
+            "nombreApellido" to nombreApellido.trim(),
+            "cedula" to cedulaLong,
+            "telefono" to telLong,
+            "correo" to correo.trim(),
+            "departamento" to departamento.trim(),
+            "municipio" to municipio.trim(),
+            "tipoCliente" to tipoCliente,
+            "timestamp" to Timestamp.now()
+        )
+
+        db.collection("Clientes")
+            .add(data)
+            .addOnSuccessListener { onResult(true, null) }
+            .addOnFailureListener { e -> onResult(false, e.message) }
+    }
+
     fun deleteCliente(documentId: String, onError: (String) -> Unit = {}) {
         if (documentId.isBlank()) return
         db.collection("Clientes").document(documentId)
@@ -109,15 +154,16 @@ class ClientesViewModel : ViewModel() {
             }
     }
 
-    fun updateCliente(cliente: Cliente) {
-        if (cliente.documentId.isBlank()) return
-        db.collection("Clientes").document(cliente.documentId)
-            .set(cliente)
-            .addOnSuccessListener {
-                Log.d("ClientesVM", "Cliente actualizado correctamente")
-            }
-            .addOnFailureListener { e ->
-                Log.e("ClientesVM", "Error actualizando cliente: ${e.message}")
-            }
+    // -------------------------
+    // UI Dialogs control
+    // -------------------------
+    fun openAddDialog() { _uiState.update { it.copy(showAddDialog = true) } }
+    fun closeAddDialog() { _uiState.update { it.copy(showAddDialog = false) } }
+
+    fun openDetailsDialog(cliente: Cliente) {
+        _uiState.update { it.copy(selectedCliente = cliente, showDetailsDialog = true) }
     }
+
+    fun closeDetailsDialog() {
+        _uiState.update { it.copy(selectedCliente = null, showDetailsDialog = false) } }
 }
