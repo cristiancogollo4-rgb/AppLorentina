@@ -16,14 +16,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
@@ -172,23 +170,16 @@ fun ProduccionItemFirestore(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 🖼️ Imagen del zapato
-            val context = LocalContext.current
-            val drawableId = if (producto.imagenUrl.startsWith("drawable/")) {
-                val resName = producto.imagenUrl.removePrefix("drawable/").substringBefore(".")
-                context.resources.getIdentifier(resName, "drawable", context.packageName)
-            } else 0
-
-            val painter = rememberAsyncImagePainter(
-                model = when {
-                    drawableId != 0 -> drawableId
-                    producto.imagenUrl.isNotEmpty() -> producto.imagenUrl
-                    else -> R.drawable.ic_launcher_foreground
-                }
-            )
+            val drawableId = when {
+                producto.imagenUrl.contains("zapato1", ignoreCase = true) -> R.drawable.zapato1
+                producto.imagenUrl.contains("zapato2", ignoreCase = true) -> R.drawable.zapato2
+                producto.imagenUrl.contains("zapato3", ignoreCase = true) -> R.drawable.zapato3
+                else -> R.drawable.ic_launcher_foreground
+            }
 
             Image(
-                painter = painter,
-                contentDescription = "Zapato",
+                painter = painterResource(id = drawableId),
+                contentDescription = "Zapato ${producto.color}",
                 modifier = Modifier
                     .size(70.dp)
                     .padding(8.dp)
