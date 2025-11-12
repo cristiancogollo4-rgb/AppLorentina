@@ -12,24 +12,59 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
+import com.google.firebase.firestore.FirebaseFirestoreException
+
+// =================================================================
+// ESTRUCTURAS DE DATOS REQUERIDAS (Asumidas y Definidas para la compilación)
+// =================================================================
+
+data class VentaProductoItem(
+    val idProducto: String = "",
+    val referencia: String = "",
+    val nombreModelo: String = "",
+    val talla: String = "",
+    val cantidad: Int = 1, // Se asume 1 unidad por item
+    val precioUnitario: Double = 0.0 // Precio real aplicado en la venta
+)
+
+
+// =================================================================
+// UI STATE (ACTUALIZADO CON CAMPOS DE PRODUCTO)
+// =================================================================
 
 data class NventaUiState(
+    // Cliente
     val clienteBuscado: String = "",
     val clienteSeleccionado: Cliente? = null,
     val mensajeClienteNoEncontrado: String? = null,
-
     val allClientes: List<Cliente> = emptyList(),
     val clientesFiltrados: List<Cliente> = emptyList(),
     val isDropdownExpanded: Boolean = false,
     val isClientesLoading: Boolean = false,
 
-    val precio: String = "",
+    // 🟢 Productos (NUEVOS CAMPOS)
+    val allProductos: List<Producto> = emptyList(), // Todos los productos "en stock"
+    val productosDisponibles: List<Producto> = emptyList(), // Productos filtrados para el dropdown
+    val productoBuscado: String = "",
+    val productoSeleccionado: Producto? = null,
+    val isProductoDropdownExpanded: Boolean = false,
+    val tallaSeleccionada: String? = null,
+    val isTallaDropdownExpanded: Boolean = false,
+    val productosEnVenta: List<VentaProductoItem> = emptyList(), // Productos ya añadidos a la venta
+
+    // Venta
+    val precio: String = "", // Total de la venta
     val fechaVenta: Date = Date(),
     val descripcion: String = "",
     val esDetal: Boolean = true,
     val esVentaEspecial: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val mensajeError: String? = null
 )
+
+// =================================================================
+// VIEW MODEL (Lógica de Cliente y Producto)
+// =================================================================
 
 class NventaViewModel : ViewModel() {
 
@@ -38,39 +73,67 @@ class NventaViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(NventaUiState())
     val uiState: StateFlow<NventaUiState> = _uiState.asStateFlow()
 
-    private val _searchQueryFlow = MutableStateFlow("")
+    private val _clienteSearchQueryFlow = MutableStateFlow("")
+    private val _productoSearchQueryFlow =
+        MutableStateFlow("") // 🟢 Nuevo flow para búsqueda de producto
 
     init {
         fetchClientes()
-        collectSearchQueryWithDebounce()
+        fetchProductos() // 🟢 Nueva llamada
+        collectSearchQueryWithDebounce() // Cliente
+        collectProductoSearchQueryWithDebounce() // 🟢 Producto
     }
+
+    // --- 1. LÓGICA DE CARGA DE DATOS ---
 
     /** Escucha Clientes en tiempo real */
     private fun fetchClientes() {
         _uiState.update { it.copy(isClientesLoading = true) }
+        db.collection("Clientes").addSnapshotListener { snapshot, error ->
+            // ... (Lógica de cliente existente) ...
+            if (error != null) {
+                Log.e("NventaVM", "Error escuchar clientes: ${error.message}", error)
+                _uiState.update { it.copy(isClientesLoading = false) }
+                return@addSnapshotListener
+            }
+            val clientes = snapshot?.toObjects(Cliente::class.java).orEmpty()
+            _uiState.update { it.copy(allClientes = clientes, isClientesLoading = false) }
+        }
+    }
 
-        db.collection("Clientes")
+    /** 🟢 Escucha Productos "en stock" en tiempo real */
+    private fun fetchProductos() {
+        db.collection("Productos")
+            .whereEqualTo("estado", "en stock") // Solo productos disponibles para venta inmediata
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    Log.e("NventaVM", "Error escuchar clientes: ${error.message}", error)
-                    _uiState.update { it.copy(isClientesLoading = false) }
+                    Log.e("NventaVM", "Error escuchar productos: ${error.message}", error)
                     return@addSnapshotListener
                 }
 
-                val clientes = snapshot?.toObjects(Cliente::class.java).orEmpty()
-                _uiState.update { it.copy(allClientes = clientes, isClientesLoading = false) }
+                val productos = snapshot?.documents // 1. Accede de forma segura (da List<...>?)
+                    .orEmpty()                      // 2. Si es nulo, devuelve una lista vacía (da List<...>)
+                    .mapNotNull { doc ->            // 3. Ahora el mapeo es seguro
+                        doc.toObject(Producto::class.java)?.copy(id = doc.id)
+                    }.orEmpty()
+                _uiState.update { it.copy(allProductos = productos) }
+                // Re-filtrar productos después de la actualización de la lista maestra
+                performProductoFilter(uiState.value.productoBuscado)
             }
     }
 
-    /** Debounce para autocompletar */
+
+    // --- 2. LÓGICA DE BÚSQUEDA Y FILTRADO DE CLIENTE ---
+
+    /** Debounce para autocompletar de cliente */
     private fun collectSearchQueryWithDebounce() {
         viewModelScope.launch {
-            _searchQueryFlow
+            _clienteSearchQueryFlow
                 .debounce(300)
                 .distinctUntilChanged()
                 .collect { query ->
                     val trimmed = query.trim()
-                    val filtered = performFilter(trimmed)
+                    val filtered = performClienteFilter(trimmed)
                     _uiState.update {
                         it.copy(
                             clientesFiltrados = filtered,
@@ -89,11 +152,11 @@ class NventaViewModel : ViewModel() {
                 mensajeClienteNoEncontrado = null
             )
         }
-        _searchQueryFlow.value = query
+        _clienteSearchQueryFlow.value = query
         if (query.isBlank()) _uiState.update { it.copy(isDropdownExpanded = false) }
     }
 
-    private fun performFilter(query: String): List<Cliente> {
+    private fun performClienteFilter(query: String): List<Cliente> {
         if (query.isBlank()) return emptyList()
         return uiState.value.allClientes.filter { c ->
             c.nombreApellido.startsWith(query, true) ||
@@ -129,54 +192,231 @@ class NventaViewModel : ViewModel() {
 
     fun dismissDropdown() = _uiState.update { it.copy(isDropdownExpanded = false) }
 
+
+    // --- 3. 🟢 LÓGICA DE BÚSQUEDA Y SELECCIÓN DE PRODUCTO ---
+
+    /** Debounce para productos */
+    private fun collectProductoSearchQueryWithDebounce() {
+        viewModelScope.launch {
+            _productoSearchQueryFlow
+                .debounce(300)
+                .distinctUntilChanged()
+                .collect { query ->
+                    performProductoFilter(query.trim())
+                }
+        }
+    }
+
+    /** Lógica de filtrado de productos */
+    private fun performProductoFilter(query: String) {
+        if (query.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    productosDisponibles = it.allProductos.take(10),
+                    isProductoDropdownExpanded = false
+                )
+            }
+            return
+        }
+
+        val filtered = uiState.value.allProductos.filter { p ->
+            p.referencia.startsWith(query, true) ||
+                    p.nombreModelo.startsWith(query, true) ||
+                    p.color.startsWith(query, true)
+        }.take(10)
+
+        _uiState.update {
+            it.copy(
+                productosDisponibles = filtered,
+                isProductoDropdownExpanded = filtered.isNotEmpty()
+            )
+        }
+    }
+
+    fun onProductoBuscadoChange(query: String) {
+        _uiState.update {
+            it.copy(
+                productoBuscado = query,
+                productoSeleccionado = null,
+                tallaSeleccionada = null // Limpiar talla si se cambia la búsqueda de producto
+            )
+        }
+        _productoSearchQueryFlow.value = query
+        if (query.isBlank()) _uiState.update { it.copy(isProductoDropdownExpanded = false) }
+    }
+
+    fun seleccionarProducto(producto: Producto?) {
+        _uiState.update {
+            it.copy(
+                productoSeleccionado = producto,
+                tallaSeleccionada = null, // Siempre limpiar talla cuando cambia el producto
+                productoBuscado = producto?.referencia ?: "",
+                isProductoDropdownExpanded = false,
+                isTallaDropdownExpanded = false
+            )
+        }
+    }
+
+    fun seleccionarTalla(talla: String) {
+        _uiState.update { it.copy(tallaSeleccionada = talla) }
+    }
+
+    fun toggleProductoDropdown(expanded: Boolean) =
+        _uiState.update { it.copy(isProductoDropdownExpanded = expanded) }
+
+    fun toggleTallaDropdown(expanded: Boolean) =
+        _uiState.update { it.copy(isTallaDropdownExpanded = expanded) }
+
+    /** 🟢 Añadir el producto seleccionado a la lista temporal de la venta */
+    fun agregarProductoAVenta() {
+        val s = uiState.value
+        val prod = s.productoSeleccionado
+        val talla = s.tallaSeleccionada
+
+        if (prod == null || talla == null || s.esVentaEspecial) {
+            _uiState.update { it.copy(mensajeError = "Seleccione producto y talla, o desactive Venta Especial.") }
+            return
+        }
+
+        // Determinar el precio unitario
+        val precioUnitario = if (s.esDetal) prod.precioDetal else prod.precioMayor
+
+        val item = VentaProductoItem(
+            idProducto = prod.id,
+            referencia = prod.referencia,
+            nombreModelo = prod.nombreModelo,
+            talla = talla,
+            cantidad = 1,
+            precioUnitario = precioUnitario
+        )
+
+        // Reiniciar campos de selección y añadir item a la lista
+        _uiState.update {
+            it.copy(
+                productosEnVenta = it.productosEnVenta + item,
+                productoSeleccionado = null,
+                tallaSeleccionada = null,
+                productoBuscado = "",
+                mensajeError = null
+            )
+        }
+        _productoSearchQueryFlow.value = ""
+    }
+
+
+    // --- 4. LÓGICA DE FORMULARIO Y GUARDADO ---
+
     fun onPrecioChange(nuevo: String) {
         if (nuevo.all { it.isDigit() || it == '.' }) _uiState.update { it.copy(precio = nuevo) }
     }
+
     fun onFechaChange(nueva: Date) = _uiState.update { it.copy(fechaVenta = nueva) }
     fun onDescripcionChange(desc: String) = _uiState.update { it.copy(descripcion = desc) }
     fun toggleTipoVenta(esDetal: Boolean) = _uiState.update { it.copy(esDetal = esDetal) }
     fun toggleVentaEspecial(isSpecial: Boolean) = _uiState.update {
+        // Solo puede ser especial si es por mayor
         if (!it.esDetal) it.copy(esVentaEspecial = isSpecial) else it.copy(esVentaEspecial = false)
     }
 
     /** Guarda la venta en Firestore */
     fun guardarVenta(onSaveSuccess: () -> Unit, onError: (String) -> Unit = {}) {
+        Log.d("VentaDebug", "Función guardarVenta() del ViewModel ejecutada.")
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true) }
+            _uiState.update { it.copy(isSaving = true, mensajeError = null) }
 
             val s = uiState.value
             val cli = s.clienteSeleccionado
-            val precio = s.precio.toDoubleOrNull()
+            val precioNullable = s.precio.toDoubleOrNull() // Sigue siendo Double?
 
-            if (cli == null || precio == null) {
-                _uiState.update { it.copy(isSaving = false) }
-                onError("Debe seleccionar un cliente y un precio válido.")
+            // VALIDACIÓN: Si es nulo, retornar
+            if (cli == null || precioNullable == null || (!s.esVentaEspecial && s.productosEnVenta.isEmpty())) {
+                val errorMsg = when {
+                    cli == null -> "Debe seleccionar un cliente."
+                    precioNullable == null -> "Debe ingresar un precio válido."
+                    else -> "Debe agregar al menos un producto, o marcar como Venta Especial."
+                }
+                _uiState.update { it.copy(isSaving = false, mensajeError = errorMsg) }
+                onError(errorMsg)
                 return@launch
             }
 
-            val venta = Venta(
-                idVenta = db.collection("Ventas").document().id,
-                cliente = cli,
-                fechaVenta = s.fechaVenta,
-                precioTotal = precio,
-                descripcion = s.descripcion,
-                esDetal = s.esDetal,
-                esVentaEspecial = s.esVentaEspecial,
-                productos = emptyList()
-            )
+            // FIX: Usar el operador de aserción no nula (!!) para obtener un Double no nulo.
+            val precioFinal: Double = precioNullable!!
 
-            db.collection("Ventas")
-                .document(venta.idVenta)
-                .set(venta)
+            // 1. Iniciar la transacción de Firestore
+            db.runTransaction { transaction ->
+                // --- 2. Deducir Inventario ---
+                if (!s.esVentaEspecial) {
+                    // ... (Lógica de descuento de stock, permanece igual) ...
+                    s.productosEnVenta.forEach { itemVendido ->
+                        val productoRef =
+                            db.collection("Productos").document(itemVendido.idProducto)
+                        val productoDoc = transaction.get(productoRef)
+
+                        val productoActual = productoDoc.toObject(Producto::class.java)
+                            ?: throw FirebaseFirestoreException(
+                                "Producto no encontrado: ${itemVendido.idProducto}",
+                                FirebaseFirestoreException.Code.ABORTED
+                            )
+
+                        val stockActual = productoActual.stockPorTalla[itemVendido.talla] ?: 0
+
+                        if (stockActual < itemVendido.cantidad) {
+                            throw FirebaseFirestoreException(
+                                "Stock insuficiente para ${itemVendido.referencia} talla ${itemVendido.talla}",
+                                FirebaseFirestoreException.Code.ABORTED
+                            )
+                        }
+
+                        val nuevoStock = stockActual - itemVendido.cantidad
+                        val nuevoMapaStock = productoActual.stockPorTalla.toMutableMap()
+                        nuevoMapaStock[itemVendido.talla] = nuevoStock
+
+                        transaction.update(
+                            productoRef,
+                            "stockPorTalla", nuevoMapaStock
+                        )
+                    }
+                }
+
+                // --- 4. Crear el documento de Venta ---
+                val venta = Venta(
+                    idVenta = db.collection("Ventas").document().id,
+                    cliente = cli,
+                    fechaVenta = s.fechaVenta,
+                    precioTotal = precioFinal,
+                    descripcion = s.descripcion,
+                    esDetal = s.esDetal,
+                    esVentaEspecial = s.esVentaEspecial,
+                    productos = s.productosEnVenta
+                )
+
+                val ventaRef = db.collection("Ventas").document(venta.idVenta)
+                transaction.set(ventaRef, venta)
+
+                null
+            }
+                // ******************************************************
+                // 💡 AÑADIDO: Manejo de éxito y fracaso para la transacción
+                // ******************************************************
                 .addOnSuccessListener {
-                    Log.d("NventaVM", "Venta guardada.")
-                    _uiState.update { NventaUiState(allClientes = it.allClientes) }
+                    Log.d("VentaDebug", "✅ Venta guardada con éxito mediante Transacción.")
+                    _uiState.update { it.copy(isSaving = false) }
                     onSaveSuccess()
                 }
                 .addOnFailureListener { e ->
-                    Log.e("NventaVM", "Error guardar venta: ${e.message}", e)
-                    _uiState.update { it.copy(isSaving = false) }
-                    onError(e.message ?: "Error desconocido")
+                    // 🔴 ESTE Log.e CAPTURARÁ EL ERROR SILENCIOSO (p. ej., DEVELOPER_ERROR o stock insuficiente)
+                    Log.e("VentaDebug", "❌ ERROR al guardar la venta en Firestore. Causa:", e)
+
+                    val errorMsg = when (e) {
+                        is FirebaseFirestoreException -> e.message
+                            ?: "Error de transacción (código: ${e.code.name})."
+
+                        else -> "Error de conexión o inesperado al guardar la venta: ${e.localizedMessage}"
+                    }
+
+                    _uiState.update { it.copy(isSaving = false, mensajeError = "Error: $errorMsg") }
+                    onError(errorMsg)
                 }
         }
     }

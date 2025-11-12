@@ -88,7 +88,7 @@ fun StockScreen(
                             )
                         }
                     }
-                    // Nota: Asumimos que R.drawable.lorenita existe o se ignora
+
                     Image(
                         painter = painterResource(id = R.drawable.lorenita),
                         contentDescription = "Logo Lorentina",

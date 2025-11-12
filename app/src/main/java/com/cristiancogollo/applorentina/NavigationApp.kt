@@ -209,8 +209,10 @@ fun NavigationApp() {
                 // FORZAMOS el tipo de retorno a () -> Unit con 'as () -> Unit'
                 onBackClick = { navController.popBackStack() } as () -> Unit,
                 onNewVentaClick = { navController.navigate(Screen.Nventa.route) }
+
             )
         }
+
 
         // 🟥 ADMIN (Asumo que ProduccionAdmin, etc. son Composable que ya tienen las firmas correctas)
         composable(Screen.ProduccionAdmin.route) {
