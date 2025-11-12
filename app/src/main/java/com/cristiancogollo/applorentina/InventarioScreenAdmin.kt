@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,27 +21,25 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
 fun InventarioScreenAdmin(
     onBackClick: () -> Unit = {},
-    vm: InventarioAdminViewModel = viewModel()
+    vm: InventarioAdminViewModel = viewModel(),
+    produccionViewModel: ProduccionViewModel = viewModel()
 ) {
-    var searchQuery by remember { mutableStateOf("") }
     val ui by vm.uiState.collectAsState()
-
-    // Estados de totales que aparecen al presionar CONSULTAR
-    var totalesPorTalla by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var totalesPorColor by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
-    var mostrarTotales by remember { mutableStateOf(false) }
+    var search by remember { mutableStateOf("") }
+    var showDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Barra superior
+        // 🩶 Barra superior gris con logo y botón volver
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -67,12 +64,15 @@ fun InventarioScreenAdmin(
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
-                modifier = Modifier.height(180.dp).width(180.dp)
+                modifier = Modifier
+                    .height(180.dp)
+                    .width(180.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
+        // 🔹 Título
         Text(
             text = "INVENTARIO",
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -83,11 +83,11 @@ fun InventarioScreenAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Buscador
+        // 🔍 Buscador
         OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Buscar referencia....") },
+            value = search,
+            onValueChange = { search = it },
+            placeholder = { Text("Buscar referencia...") },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -108,87 +108,55 @@ fun InventarioScreenAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (ui.isLoading) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFF6A4E23))
-            }
-        }
-
+        // 🔹 Lista de productos desde Firestore (solo en stock)
         val filtrados = ui.productos.filter {
-            it.referencia.contains(searchQuery, ignoreCase = true) ||
-                    it.color.contains(searchQuery, ignoreCase = true) ||
-                    it.nombreModelo.contains(searchQuery, ignoreCase = true)
+            it.referencia.contains(search, ignoreCase = true) ||
+                    it.color.contains(search, ignoreCase = true)
         }
 
-        // Lista de productos
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
                 .padding(horizontal = 16.dp)
         ) {
-            items(filtrados) { p ->
-                InventarioItemFirestore(p)
+            items(filtrados) { producto ->
+                InventarioItemFirestore(producto)
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
 
-        // CONSULTAR → Totales por talla y por color (sobre la lista filtrada)
+        // 🔘 Botón CONSULTAR
         Button(
-            onClick = {
-                val totTalla = mutableMapOf<String, Int>()
-                val totColor = mutableMapOf<String, Int>()
-
-                filtrados.forEach { prod ->
-                    // por talla
-                    prod.stockPorTalla.forEach { (talla, cant) ->
-                        totTalla[talla] = (totTalla[talla] ?: 0) + cant
-                    }
-                    // por color: suma total del producto (todas las tallas)
-                    val suma = prod.stockPorTalla.values.sum()
-                    totColor[prod.color] = (totColor[prod.color] ?: 0) + suma
-                }
-
-                totalesPorTalla = totTalla.toSortedMap(compareBy { it.toIntOrNull() ?: 0 })
-                totalesPorColor = totColor.toSortedMap()
-                mostrarTotales = true
-            },
+            onClick = { showDialog = true },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 40.dp)
                 .height(60.dp)
-                .padding(bottom = 12.dp)
+                .padding(bottom = 20.dp)
         ) {
-            Text("CONSULTAR", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "CONSULTAR",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
-        if (mostrarTotales) {
-            // Bloque de totales con tu estilo
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
-                Text("Totales por talla", fontWeight = FontWeight.Bold, color = Color.Gray)
-                Spacer(Modifier.height(6.dp))
-                FlowRowTallas(totalesPorTalla)
-
-                Spacer(Modifier.height(12.dp))
-                Text("Totales por color", fontWeight = FontWeight.Bold, color = Color.Gray)
-                totalesPorColor.forEach { (color, total) ->
-                    Text("• $color: $total pares", color = Color.Black)
-                }
-
-                Spacer(Modifier.height(10.dp))
-            }
+        // 🪟 Ventana emergente de consulta
+        if (showDialog) {
+            ConsultaPorReferenciaDialog(
+                onDismiss = { showDialog = false },
+                vm = vm
+            )
         }
     }
 }
 
+// 🔹 Ítem visual de inventario
 @Composable
-private fun InventarioItemFirestore(producto: Producto) {
-    // Reusa tu card simple (solo visual). Aquí no se edita stock (si lo quieres, se puede agregar TextField por talla).
+fun InventarioItemFirestore(producto: Producto) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = Color.White,
@@ -199,44 +167,87 @@ private fun InventarioItemFirestore(producto: Producto) {
             .border(1.dp, Color(0xFFBDBDBD), RoundedCornerShape(12.dp))
             .padding(8.dp)
     ) {
-        Column(Modifier.fillMaxWidth()) {
-            Text("Ref: ${producto.referencia}", fontWeight = FontWeight.Bold)
-            Text("Color: ${producto.color}", color = Color.Gray)
-            Spacer(Modifier.height(6.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val painter = rememberAsyncImagePainter(
+                model = producto.imagenUrl.ifEmpty { R.drawable.ic_launcher_foreground }
+            )
+            Image(
+                painter = painter,
+                contentDescription = "Zapato",
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(8.dp)
+            )
 
-            // Muestra las tallas 35–42 con su stock
-            Column {
-                (35..42).chunked(4).forEach { bloque ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        bloque.forEach { t ->
-                            val cantidad = producto.stockPorTalla[t.toString()] ?: 0
-                            Text("T$t: $cantidad")
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                }
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(start = 10.dp)
+            ) {
+                Text("Ref: ${producto.referencia}", fontWeight = FontWeight.Bold)
+                Text("Color: ${producto.color}", color = Color.Gray)
+                Text("Estado: ${producto.estado}", color = Color.DarkGray)
             }
         }
     }
 }
 
+// 🪟 Diálogo para buscar producto por referencia
 @Composable
-private fun FlowRowTallas(totales: Map<String, Int>) {
-    Column {
-        (35..42).chunked(4).forEach { bloque ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                bloque.forEach { t ->
-                    val v = totales[t.toString()] ?: 0
-                    Text("T$t: $v")
+fun ConsultaPorReferenciaDialog(
+    onDismiss: () -> Unit,
+    vm: InventarioAdminViewModel
+) {
+    var referencia by remember { mutableStateOf("") }
+    var producto by remember { mutableStateOf<Producto?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        title = { Text("Consultar referencia") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = referencia,
+                    onValueChange = { referencia = it },
+                    label = { Text("Referencia") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = { vm.consultarPorReferencia(referencia) { producto = it } },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("BUSCAR", color = Color.White)
+                }
+
+                if (producto != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("Color: ${producto!!.color}", fontWeight = FontWeight.Bold)
+                    Text("Stock actual:")
+                    producto!!.stockPorTalla.forEach { (t, c) ->
+                        Text(text = "Talla $t → $c pares")
+                    }
+                } else if (referencia.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("No se encontró la referencia.", color = Color.Red)
                 }
             }
-            Spacer(Modifier.height(4.dp))
         }
-    }
+    )
 }
 
+// 🔍 PREVIEW para ver antes de ejecutar
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun InventarioPreview() {
-    AppLorentinaTheme { InventarioScreenAdmin(onBackClick = {}) }
+    AppLorentinaTheme {
+        InventarioScreenAdmin()
+    }
 }

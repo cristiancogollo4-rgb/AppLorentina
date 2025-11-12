@@ -23,38 +23,27 @@ class InventarioAdminViewModel : ViewModel() {
     init { cargarInventario() }
 
     fun cargarInventario() {
-        _uiState.value = _uiState.value.copy(isLoading = true)
-        db.collection("Productos")
-            .whereEqualTo("estado", "en stock")
+        db.collection("Productos").whereEqualTo("estado", "en stock")
             .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    Log.e("InventarioVM", "Error: ${e.message}")
-                    _uiState.value = _uiState.value.copy(isLoading = false)
-                    return@addSnapshotListener
-                }
+                if (e != null) return@addSnapshotListener
                 _uiState.value = InventarioUiState(
-                    productos = snapshot?.toObjects(Producto::class.java) ?: emptyList(),
-                    isLoading = false
+                    productos = snapshot?.toObjects(Producto::class.java) ?: emptyList()
                 )
             }
     }
 
-    fun actualizarStock(ref: String, talla: String, valor: Int) {
+    // === CONSULTA POR REFERENCIA ===
+    fun consultarPorReferencia(ref: String, onResult: (Producto?) -> Unit) {
         viewModelScope.launch {
             try {
                 val query = db.collection("Productos")
                     .whereEqualTo("referencia", ref)
+                    .whereEqualTo("estado", "en stock")
                     .get().await()
-
-                for (doc in query.documents) {
-                    val stockActual = doc.get("stockPorTalla") as? Map<String, Long> ?: emptyMap()
-                    val actualizado = stockActual.toMutableMap()
-                    actualizado[talla] = valor.toLong()
-                    db.collection("Productos").document(doc.id)
-                        .update("stockPorTalla", actualizado).await()
-                }
+                onResult(query.documents.firstOrNull()?.toObject(Producto::class.java))
             } catch (e: Exception) {
-                Log.e("InventarioVM", "Error al actualizar stock: ${e.message}")
+                Log.e("InventarioVM", "Error: ${e.message}")
+                onResult(null)
             }
         }
     }

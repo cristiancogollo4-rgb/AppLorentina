@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,7 +40,7 @@ fun ProduccionAdmin(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Barra superior
+        // 🩶 Barra superior gris con logo y botón volver
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -54,7 +55,7 @@ fun ProduccionAdmin(
                     .padding(start = 8.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Volver",
                     tint = Color.White,
                     modifier = Modifier.size(35.dp)
@@ -72,6 +73,7 @@ fun ProduccionAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // 🔹 Título
         Text(
             text = "PRODUCCIÓN",
             modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -82,7 +84,7 @@ fun ProduccionAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Búsqueda
+        // 🔹 Barra de búsqueda
         OutlinedTextField(
             value = search,
             onValueChange = { search = it },
@@ -100,11 +102,10 @@ fun ProduccionAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Filtrados por búsqueda
+        // 🔹 Lista de productos desde Firestore (filtrados)
         val filtrados = productos.filter {
             it.referencia.contains(search, ignoreCase = true) ||
-                    it.color.contains(search, ignoreCase = true) ||
-                    it.nombreModelo.contains(search, ignoreCase = true)
+                    it.color.contains(search, ignoreCase = true)
         }
 
         LazyColumn(
@@ -121,7 +122,7 @@ fun ProduccionAdmin(
             }
         }
 
-        // Botón AGREGAR
+        // 🔹 Botón inferior — redirige a AgregarTareaScreenAdmin
         Button(
             onClick = { navTo(Screen.AgregarTareaAdmin.route) },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
@@ -132,13 +133,18 @@ fun ProduccionAdmin(
                 .height(60.dp)
                 .padding(bottom = 20.dp)
         ) {
-            Text("AGREGAR", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = "AGREGAR",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
 @Composable
-private fun ProduccionItemFirestore(
+fun ProduccionItemFirestore(
     producto: Producto,
     viewModel: ProduccionViewModel
 ) {
@@ -146,7 +152,7 @@ private fun ProduccionItemFirestore(
     var tallaSeleccionada by remember { mutableStateOf("TALLA") }
 
     var expandedEstado by remember { mutableStateOf(false) }
-    var estadoSeleccionado by remember { mutableStateOf(producto.estado.ifBlank { "en producción" }) }
+    var estadoSeleccionado by remember { mutableStateOf(producto.estado) }
 
     val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla", "en stock")
 
@@ -165,14 +171,27 @@ private fun ProduccionItemFirestore(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen (Coil soporta android.resource:// o url)
+            // 🖼️ Imagen del zapato
+            val context = LocalContext.current
+            val drawableId = if (producto.imagenUrl.startsWith("drawable/")) {
+                val resName = producto.imagenUrl.removePrefix("drawable/").substringBefore(".")
+                context.resources.getIdentifier(resName, "drawable", context.packageName)
+            } else 0
+
             val painter = rememberAsyncImagePainter(
-                model = if (producto.imagenUrl.isNotBlank()) producto.imagenUrl else R.drawable.ic_launcher_foreground
+                model = when {
+                    drawableId != 0 -> drawableId
+                    producto.imagenUrl.isNotEmpty() -> producto.imagenUrl
+                    else -> R.drawable.ic_launcher_foreground
+                }
             )
+
             Image(
                 painter = painter,
                 contentDescription = "Zapato",
-                modifier = Modifier.size(70.dp).padding(8.dp)
+                modifier = Modifier
+                    .size(70.dp)
+                    .padding(8.dp)
             )
 
             Column(
@@ -180,11 +199,10 @@ private fun ProduccionItemFirestore(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text("Ref: ${producto.referencia}", fontWeight = FontWeight.Bold)
-                Text("Color: ${producto.color}", color = Color.Gray, fontSize = 13.sp)
-
+                Text(producto.color, color = Color.Gray, fontSize = 13.sp)
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Selector talla (visual)
+                // 🔸 Selector de talla (solo visual)
                 Box {
                     Button(
                         onClick = { expandedTalla = !expandedTalla },
@@ -196,7 +214,10 @@ private fun ProduccionItemFirestore(
                         Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
                     }
 
-                    DropdownMenu(expanded = expandedTalla, onDismissRequest = { expandedTalla = false }) {
+                    DropdownMenu(
+                        expanded = expandedTalla,
+                        onDismissRequest = { expandedTalla = false }
+                    ) {
                         (35..42).forEach { talla ->
                             DropdownMenuItem(
                                 text = { Text("Talla $talla") },
@@ -212,7 +233,7 @@ private fun ProduccionItemFirestore(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Selector de estado (puede pasar a "en stock")
+            // 🔸 Selector de estado
             Box {
                 Button(
                     onClick = { expandedEstado = !expandedEstado },
@@ -224,7 +245,10 @@ private fun ProduccionItemFirestore(
                     Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
                 }
 
-                DropdownMenu(expanded = expandedEstado, onDismissRequest = { expandedEstado = false }) {
+                DropdownMenu(
+                    expanded = expandedEstado,
+                    onDismissRequest = { expandedEstado = false }
+                ) {
                     estados.forEach { estado ->
                         DropdownMenuItem(
                             text = { Text(estado) },
@@ -246,5 +270,7 @@ private fun ProduccionItemFirestore(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ProduccionPreview() {
-    AppLorentinaTheme { ProduccionAdmin() }
+    AppLorentinaTheme {
+        ProduccionAdmin()
+    }
 }

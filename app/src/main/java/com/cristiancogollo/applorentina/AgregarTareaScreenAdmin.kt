@@ -7,10 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,9 +17,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
 fun AgregarTareaScreenAdmin(
@@ -33,9 +32,15 @@ fun AgregarTareaScreenAdmin(
     var referencia by remember { mutableStateOf("") }
     var color by remember { mutableStateOf("") }
 
+    // Estado del proceso
     var expandedEstado by remember { mutableStateOf(false) }
-    var estadoSeleccionado by remember { mutableStateOf("en producción") }
-    val estados = listOf("en producción", "Corte", "Armado", "Costura", "Soldadura", "Emplantilla")
+    var estadoSeleccionado by remember { mutableStateOf("Seleccione estado") }
+    val estados = listOf("Corte", "Armado", "Costura", "Soldadura", "Emplantilla")
+
+    // Selector de talla
+    var expandedTalla by remember { mutableStateOf(false) }
+    var tallaSeleccionada by remember { mutableStateOf("Talla") }
+    val tallas = listOf("35", "36", "37", "38", "39", "40", "41", "42")
 
     val formState by viewModel.formState.collectAsState()
 
@@ -46,7 +51,7 @@ fun AgregarTareaScreenAdmin(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Barra superior con flecha + logo
+        // 🩶 Barra superior gris con flecha
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -67,6 +72,7 @@ fun AgregarTareaScreenAdmin(
                     modifier = Modifier.size(35.dp)
                 )
             }
+
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -78,6 +84,7 @@ fun AgregarTareaScreenAdmin(
 
         Spacer(modifier = Modifier.height(15.dp))
 
+        // 🟤 Título principal
         Text(
             text = "AGREGAR TAREA",
             fontSize = 22.sp,
@@ -86,9 +93,17 @@ fun AgregarTareaScreenAdmin(
             textAlign = TextAlign.Center
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Registra una nueva referencia y color",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Referencia
+        // Campo Referencia
         OutlinedTextField(
             value = referencia,
             onValueChange = {
@@ -96,7 +111,7 @@ fun AgregarTareaScreenAdmin(
                 viewModel.updateReferencia(it)
             },
             placeholder = { Text("Referencia") },
-            leadingIcon = { Icon(Icons.Default.Style, contentDescription = null, tint = Color(0xFFC2D500)) },
+            leadingIcon = { Icon(Icons.Default.Style, null, tint = Color(0xFFC2D500)) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFFBDBDBD),
                 unfocusedBorderColor = Color(0xFFBDBDBD)
@@ -107,15 +122,15 @@ fun AgregarTareaScreenAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Color
+        // Campo Color
         OutlinedTextField(
             value = color,
             onValueChange = {
                 color = it
                 viewModel.updateColor(it)
             },
-            placeholder = { Text("Color... (COÑAC / BLANCO / NEGRO)") },
-            leadingIcon = { Icon(Icons.Default.Brush, contentDescription = null, tint = Color(0xFFC2D500)) },
+            placeholder = { Text("Color...") },
+            leadingIcon = { Icon(Icons.Default.Brush, null, tint = Color(0xFFC2D500)) },
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFFBDBDBD),
                 unfocusedBorderColor = Color(0xFFBDBDBD)
@@ -124,9 +139,51 @@ fun AgregarTareaScreenAdmin(
             modifier = Modifier.fillMaxWidth(0.85f)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(25.dp))
 
-        // Estado del proceso
+        // Selector de talla
+        Text(
+            text = "Selecciona la talla:",
+            fontWeight = FontWeight.Bold,
+            color = Color.Gray,
+            fontSize = 14.sp,
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(start = 30.dp, bottom = 6.dp)
+        )
+
+        Box(modifier = Modifier.fillMaxWidth(0.85f)) {
+            Button(
+                onClick = { expandedTalla = !expandedTalla },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(45.dp)
+            ) {
+                Text(tallaSeleccionada, color = Color.White)
+                Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
+            }
+
+            DropdownMenu(
+                expanded = expandedTalla,
+                onDismissRequest = { expandedTalla = false }
+            ) {
+                tallas.forEach { talla ->
+                    DropdownMenuItem(
+                        text = { Text(talla) },
+                        onClick = {
+                            tallaSeleccionada = "Talla $talla"
+                            expandedTalla = false
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(25.dp))
+
+        // Estado
         Text(
             text = "Estado del proceso:",
             fontWeight = FontWeight.Bold,
@@ -146,33 +203,33 @@ fun AgregarTareaScreenAdmin(
                     .fillMaxWidth()
                     .height(45.dp)
             ) {
-                Text(estadoSeleccionado, color = Color.White, fontSize = 14.sp)
-                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = null, tint = Color.White)
+                Text(estadoSeleccionado, color = Color.White)
+                Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
             }
 
-            DropdownMenu(expanded = expandedEstado, onDismissRequest = { expandedEstado = false }) {
+            // ✅ CORREGIDO — sin errores de compilación
+            DropdownMenu(
+                expanded = expandedEstado,
+                onDismissRequest = { expandedEstado = false }
+            ) {
                 estados.forEach { e ->
                     DropdownMenuItem(
-                        text = { Text(e) },
+                        text = { Text(text = e) },
                         onClick = {
                             estadoSeleccionado = e
                             expandedEstado = false
-                            viewModel.updateEstado(e)
+                            viewModel.updateDescripcion(e) // ✅ Ejecuta correctamente la función
                         }
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(26.dp))
+        Spacer(modifier = Modifier.height(30.dp))
 
-        // ENVIAR → guarda en Firestore
+        // 🔘 Botón ENVIAR → guarda en Firestore
         Button(
-            onClick = {
-                viewModel.crearProducto()
-                // si deseas, navega directo a Inventario:
-                // navTo(Screen.InventarioAdmin.route)
-            },
+            onClick = { viewModel.crearProducto() },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(10.dp),
             modifier = Modifier
@@ -185,7 +242,7 @@ fun AgregarTareaScreenAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Mensaje
+        // 🔹 Mensaje de confirmación
         formState.mensaje?.let { mensaje ->
             Text(
                 text = mensaje,
@@ -196,5 +253,13 @@ fun AgregarTareaScreenAdmin(
         }
 
         Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun AgregarTareaPreview() {
+    AppLorentinaTheme {
+        AgregarTareaScreenAdmin()
     }
 }
