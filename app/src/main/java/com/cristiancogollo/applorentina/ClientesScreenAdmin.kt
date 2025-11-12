@@ -24,20 +24,28 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun ClientesScreenAdmin(
-    onBackClick: () -> Unit = {} // Callback para la flecha de retroceso
+    onBackClick: () -> Unit = {}
 ) {
     var searchText by remember { mutableStateOf("") }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var clientes by remember { mutableStateOf(listOf<Cliente>()) }
 
-    // Datos de ejemplo
-    val clientes = listOf(
-        Triple("JUAN M.", "1097912", "3134567"),
-        Triple("OSCAR S.", "1098574", "3145697"),
-        Triple("JUAN C.", "10995632", "3564792"),
-        Triple("DAVID D.", "91227055", "3156489")
-    )
+    // 🔥 Cargar clientes desde Firestore
+    LaunchedEffect(Unit) {
+        val db = FirebaseFirestore.getInstance()
+        val snapshot = db.collection("Clientes").get().await()
+        clientes = snapshot.documents.mapNotNull { it.toObject(Cliente::class.java) }
+    }
+
+    // 🔹 Filtro de búsqueda
+    val filteredClientes = clientes.filter {
+        it.nombreApellido.contains(searchText, ignoreCase = true)
+    }
 
     Column(
         modifier = Modifier
@@ -46,7 +54,7 @@ fun ClientesScreenAdmin(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🟩 Barra superior gris con flecha y logo
+        // 🟩 Barra superior
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -54,7 +62,7 @@ fun ClientesScreenAdmin(
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 🔙 Botón de retroceso
+            // 🔙 Flecha atrás
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -71,7 +79,6 @@ fun ClientesScreenAdmin(
                 }
             }
 
-            // 🖼️ Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
@@ -83,7 +90,6 @@ fun ClientesScreenAdmin(
 
         Spacer(modifier = Modifier.height(15.dp))
 
-        // 🟤 Título
         Text(
             text = "CLIENTES",
             fontSize = 22.sp,
@@ -145,8 +151,8 @@ fun ClientesScreenAdmin(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Lista de clientes
-        clientes.forEach { (nombre, cc, telefono) ->
+        // 🔹 Lista
+        filteredClientes.forEach { cliente ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
@@ -160,9 +166,9 @@ fun ClientesScreenAdmin(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(nombre, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(cc, fontSize = 13.sp)
-                    Text(telefono, fontSize = 13.sp)
+                    Text(cliente.nombreApellido, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(cliente.cedula.toString(), fontSize = 13.sp)
+                    Text(cliente.telefono.toString(), fontSize = 13.sp)
                 }
             }
         }
@@ -171,7 +177,7 @@ fun ClientesScreenAdmin(
 
         // 🩶 Botón AGREGAR
         Button(
-            onClick = { /* Acción futura */ },
+            onClick = { showAddDialog = true },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBDBDBD)),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
@@ -189,6 +195,27 @@ fun ClientesScreenAdmin(
 
         Spacer(modifier = Modifier.height(35.dp))
     }
+
+    // 🪟 Diálogo de agregar cliente
+    if (showAddDialog) {
+        AgregarClienteDialog(
+            onDismiss = { showAddDialog = false },
+            onSave = { nombre, cedula, telefono, correo, departamento, municipio, tipo ->
+                val db = FirebaseFirestore.getInstance()
+                val cliente = hashMapOf(
+                    "nombreApellido" to nombre,
+                    "cedula" to cedula.toLongOrNull(),
+                    "telefono" to telefono.toLongOrNull(),
+                    "correo" to correo,
+                    "departamento" to departamento,
+                    "municipio" to municipio,
+                    "tipoCliente" to tipo
+                )
+                db.collection("Clientes").add(cliente)
+                showAddDialog = false
+            }
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
@@ -198,4 +225,3 @@ fun ClientesPreview() {
         ClientesScreenAdmin()
     }
 }
-
