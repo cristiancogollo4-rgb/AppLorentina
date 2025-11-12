@@ -1,10 +1,8 @@
 package com.cristiancogollo.applorentina
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,10 +22,10 @@ fun DetalleClienteDialog(
     tipoCliente: String
 ) {
     AlertDialog(
-        onDismissRequest = { navController.popBackStack()},
+        onDismissRequest = { navController.popBackStack() },
         confirmButton = {
             Button(
-                onClick = { navController.popBackStack()},
+                onClick = { navController.popBackStack() },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB5CC00))
             ) {
                 Text("Cerrar", color = Color.White)
@@ -43,10 +41,10 @@ fun DetalleClienteDialog(
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(" Cédula: $cedula")
-                Text(" Teléfono: $telefono")
+                Text("Cédula: $cedula")
+                Text("Teléfono: $telefono")
                 Text("Correo: $correo")
-                Text(" Departamento: $departamento")
+                Text("Departamento: $departamento")
                 Text("Municipio: $municipio")
                 Text(
                     "Tipo de cliente: ${if (tipoCliente.toBoolean()) "Detal" else "Por Mayor"}",
@@ -59,3 +57,23 @@ fun DetalleClienteDialog(
     )
 }
 
+/**
+ * 🔹 Nuevo método auxiliar: permite abrir este diálogo fácilmente desde cualquier parte
+ * pasando directamente el objeto Cliente completo (sin cambiar tu estructura actual).
+ */
+@Composable
+fun DetalleClienteDialogFromObject(
+    navController: NavController,
+    cliente: Cliente
+) {
+    DetalleClienteDialog(
+        navController = navController,
+        nombre = cliente.nombreApellido,
+        cedula = cliente.cedula.toString(),
+        telefono = cliente.telefono.toString(),
+        correo = cliente.correo,
+        departamento = cliente.departamento,
+        municipio = cliente.municipio,
+        tipoCliente = cliente.tipoCliente.toString()
+    )
+}
