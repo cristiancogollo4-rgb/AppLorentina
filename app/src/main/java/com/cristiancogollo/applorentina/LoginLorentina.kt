@@ -304,16 +304,6 @@ fun LorentinaLoginScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Contraseña olvidada
-                    TextButton(onClick = onForgotPasswordClick) {
-                        Text(
-                            text = "¿OLVIDASTE LA CONTRASEÑA?",
-                            color = Color(0xFF666666),
-                            fontSize = 12.sp
-                        )
-                    }
                 }
             }
         }
