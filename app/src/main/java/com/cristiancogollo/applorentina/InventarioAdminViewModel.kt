@@ -16,60 +16,43 @@ data class InventarioUiState(
 )
 
 class InventarioAdminViewModel : ViewModel() {
-
     private val db = FirebaseFirestore.getInstance()
     private val _uiState = MutableStateFlow(InventarioUiState())
     val uiState: StateFlow<InventarioUiState> = _uiState
 
-    init {
-        cargarInventario()
-    }
+    init { cargarInventario() }
 
-    // ============================================================
-    // 🟢 CARGAR PRODUCTOS EN STOCK
-    // ============================================================
     fun cargarInventario() {
         _uiState.value = _uiState.value.copy(isLoading = true)
         db.collection("Productos")
             .whereEqualTo("estado", "en stock")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
-                    Log.e("InventarioVM", "Error al obtener inventario: ${e.message}")
+                    Log.e("InventarioVM", "Error: ${e.message}")
                     _uiState.value = _uiState.value.copy(isLoading = false)
                     return@addSnapshotListener
                 }
-
-                val productos = snapshot?.toObjects(Producto::class.java) ?: emptyList()
-                _uiState.value = InventarioUiState(productos = productos, isLoading = false)
+                _uiState.value = InventarioUiState(
+                    productos = snapshot?.toObjects(Producto::class.java) ?: emptyList(),
+                    isLoading = false
+                )
             }
     }
 
-    // ============================================================
-    // 🟡 ACTUALIZAR STOCK POR TALLA
-    // ============================================================
-    fun actualizarStock(referencia: String, talla: String, nuevoValor: Int) {
+    fun actualizarStock(ref: String, talla: String, valor: Int) {
         viewModelScope.launch {
             try {
-                val query = db.collection("Productos")
-                    .whereEqualTo("referencia", referencia)
-                    .get()
-                    .await()
-
+                val query = db.collection("Productos").whereEqualTo("referencia", ref).get().await()
                 for (doc in query.documents) {
                     val stockActual = doc.get("stockPorTalla") as? Map<String, Long> ?: emptyMap()
-                    val stockActualizado = stockActual.toMutableMap()
-                    stockActualizado[talla] = nuevoValor.toLong()
-
+                    val actualizado = stockActual.toMutableMap()
+                    actualizado[talla] = valor.toLong()
                     db.collection("Productos").document(doc.id)
-                        .update("stockPorTalla", stockActualizado)
-                        .await()
+                        .update("stockPorTalla", actualizado).await()
                 }
-
-                Log.d("InventarioVM", "Stock actualizado: Ref $referencia, Talla $talla → $nuevoValor")
             } catch (e: Exception) {
                 Log.e("InventarioVM", "Error al actualizar stock: ${e.message}")
             }
         }
     }
 }
-
