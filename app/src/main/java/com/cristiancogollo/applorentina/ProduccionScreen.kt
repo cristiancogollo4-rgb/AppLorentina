@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -22,31 +21,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// import com.example.app_lorentina.R // Recuerda importar tu R
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 
 // =================================================================
 // 1. PANTALLA PRODUCCIÓN
 // =================================================================
 
 @Composable
-fun ProduccionScreen(onBackClick: () -> Unit = {}) {
-    val colorVerdeClaro = Color(0xFFC2D500)
-    val colorVerdeOscuro = Color(0xFFB5CC00)
-    val colorGrisTexto = Color(0xFF5C5C5C)
-
-    var searchQuery by remember { mutableStateOf("") }
-
-    // Datos de producción de ejemplo
-    val productosEnProduccion = listOf(
-        Pair("1028 COÑAC", "En Corte"),
-        Pair("1006 BLANCO", "En Montaje"),
-        Pair("1046 BLANCO X GOYA", "Terminado")
-    )
+fun ProduccionScreen(
+    onBackClick: () -> Unit = {},
+    // 🟢 Inyección del ViewModel de solo lectura para producción
+    viewModel: ProduccionVendedorViewModel = viewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFEFEFEF))
+            .background(ColorFondoScreen)
             .padding(top = 16.dp, start = 8.dp, end = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -64,7 +57,10 @@ fun ProduccionScreen(onBackClick: () -> Unit = {}) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colorVerdeClaro, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(
+                            ColorVerdeClaro,
+                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        )
                         .padding(vertical = 15.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -73,7 +69,7 @@ fun ProduccionScreen(onBackClick: () -> Unit = {}) {
                             .align(Alignment.CenterStart)
                             .padding(start = 8.dp)
                     ) {
-                        IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
+                        IconButton(onClick = onBackClick) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "Volver",
@@ -94,49 +90,100 @@ fun ProduccionScreen(onBackClick: () -> Unit = {}) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 2. Título de la Pantalla (MODIFICADO)
+                // 2. Título de la Pantalla
                 Text(
                     text = "REF. EN PRODUCCION",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF5C5C5C)
+                    color = ColorGrisTexto
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 3. Barra de búsqueda (Buscar Referencia) - Borde verde claro
+                // 3. Barra de búsqueda (Buscar Referencia)
                 OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("BUSCAR REFERENCIA....", color = Color.Gray.copy(alpha = 0.7f)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Buscar", tint = colorVerdeClaro) },
+                    value = uiState.searchQuery, // 🟢 Usar el estado del VM
+                    onValueChange = viewModel::onSearchQueryChange, // 🟢 Usar la función del VM
+                    placeholder = {
+                        Text(
+                            "BUSCAR REFERENCIA....",
+                            color = Color.Gray.copy(alpha = 0.7f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = ColorVerdeClaro
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp),
                     shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorVerdeClaro,
-                        unfocusedBorderColor = colorVerdeClaro,
-                        cursorColor = colorVerdeOscuro
+                        focusedBorderColor = ColorVerdeClaro,
+                        unfocusedBorderColor = ColorVerdeClaro,
+                        cursorColor = ColorVerdeOscuro
                     )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. Lista de Productos en Producción
-                LazyColumn(
+                // 4. Filtros de Producción (REFE, COLOR, TALLA)
+                Row(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .padding(horizontal = 24.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    items(productosEnProduccion) { (referencia, estado) ->
-                        ProduccionCard(
-                            referencia = referencia,
-                            estado = estado,
-                            colorVerdeClaro = colorVerdeClaro,
-                            colorGrisTexto = colorGrisTexto
-                        )
+                    ProduccionFilterButton(
+                        text = "REFE.",
+                        isSelected = uiState.activeFilter == "REFE",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("REFE") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    ProduccionFilterButton(
+                        text = "COLOR",
+                        isSelected = uiState.activeFilter == "COLOR",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("COLOR") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    ProduccionFilterButton(
+                        text = "TALLA",
+                        isSelected = uiState.activeFilter == "TALLA",
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.onFilterTypeChange("TALLA") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 5. Lista de Productos en Producción
+                if (uiState.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp), color = ColorVerdeOscuro)
+                } else if (uiState.errorMessage != null) {
+                    Text(uiState.errorMessage!!, color = Color.Red, modifier = Modifier.padding(16.dp))
+                } else if (uiState.filteredProductos.isEmpty() && uiState.searchQuery.isNotBlank()) {
+                    Text("No se encontraron resultados para '${uiState.searchQuery}' bajo el filtro ${uiState.activeFilter}.",
+                        color = ColorGrisTexto, modifier = Modifier.padding(16.dp))
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 24.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(uiState.filteredProductos) { producto -> // 🟢 Usar la lista filtrada del VM
+                            ProduccionCard(
+                                producto = producto, // 🟢 Pasar el objeto Producto completo
+                                colorVerdeClaro = ColorVerdeClaro,
+                                colorGrisTexto = ColorGrisTexto
+                            )
+                        }
                     }
                 }
             }
@@ -149,8 +196,32 @@ fun ProduccionScreen(onBackClick: () -> Unit = {}) {
 // -----------------------------------------------------------------
 
 @Composable
-fun TallaStockDisplay(talla: String, stock: String, colorGrisTexto: Color) {
-    // Componente de solo lectura que usamos en StockScreen
+fun ProduccionFilterButton(text: String, isSelected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val containerColor = if (isSelected) ColorVerdeOscuro else Color(0xFFEFF5C9)
+    val contentColor = if (isSelected) Color.White else Color(0xFF8AA100)
+    val borderColor = if (isSelected) ColorVerdeOscuro else Color(0xFFEFF5C9)
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        shape = RoundedCornerShape(10.dp),
+        border = ButtonDefaults.outlinedButtonBorder.copy(
+            width = 1.dp,
+            brush = androidx.compose.ui.graphics.SolidColor(borderColor)
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+        modifier = modifier
+    ) {
+        Text(text = text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+
+@Composable
+fun TallaStockDisplay(talla: String, stock: Int, colorGrisTexto: Color) {
+    // 🟢 MODIFICADO para usar Int de stock
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -158,23 +229,28 @@ fun TallaStockDisplay(talla: String, stock: String, colorGrisTexto: Color) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "$talla : $stock",
+            text = "Talla $talla : ",
             fontSize = 14.sp,
             color = colorGrisTexto,
             fontWeight = FontWeight.Normal,
+        )
+        Text(
+            text = stock.toString(),
+            fontSize = 14.sp,
+            // Resalta en rojo si no hay stock
+            color = if (stock > 0) colorGrisTexto else Color.Red,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
 
 
 @Composable
-fun ProduccionCard(referencia: String, estado: String, colorVerdeClaro: Color, colorGrisTexto: Color) {
-    // Definición de tallas simulada
-    val stockSimulado = mapOf(
-        "35" to "3", "36" to "3", "37" to "3", "38" to "3",
-        "39" to "3", "40" to "3", "41" to "3", "42" to "3"
-    )
-
+fun ProduccionCard(
+    producto: Producto, // 🟢 Recibe el objeto Producto
+    colorVerdeClaro: Color,
+    colorGrisTexto: Color
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -196,50 +272,57 @@ fun ProduccionCard(referencia: String, estado: String, colorVerdeClaro: Color, c
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    referencia,
+                    // Muestra Referencia y Modelo
+                    "${producto.referencia} ${producto.nombreModelo}",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 16.sp,
                     color = colorGrisTexto
                 )
+                Text(
+                    "Color: ${producto.color}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Distribución de Tallas (2 columnas de solo lectura)
+                // Distribución de Tallas (Usando el stock real del producto)
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Columna 1
+                    // Columna 1 (Tallas 35-38)
                     Column(modifier = Modifier.weight(1f)) {
-                        TallaStockDisplay("35", stockSimulado["35"]!!, colorGrisTexto)
-                        TallaStockDisplay("36", stockSimulado["36"]!!, colorGrisTexto)
-                        TallaStockDisplay("39", stockSimulado["39"]!!, colorGrisTexto)
-                        TallaStockDisplay("40", stockSimulado["40"]!!, colorGrisTexto)
+                        (35..38).forEach { talla ->
+                            val stock = producto.stockPorTalla[talla.toString()] ?: 0
+                            TallaStockDisplay(talla.toString(), stock, colorGrisTexto)
+                        }
                     }
 
-                    // Columna 2
+                    // Columna 2 (Tallas 39-42)
                     Column(modifier = Modifier.weight(1f)) {
-                        TallaStockDisplay("37", stockSimulado["37"]!!, colorGrisTexto)
-                        TallaStockDisplay("38", stockSimulado["38"]!!, colorGrisTexto)
-                        TallaStockDisplay("41", stockSimulado["41"]!!, colorGrisTexto)
-                        TallaStockDisplay("42", stockSimulado["42"]!!, colorGrisTexto)
+                        (39..42).forEach { talla ->
+                            val stock = producto.stockPorTalla[talla.toString()] ?: 0
+                            TallaStockDisplay(talla.toString(), stock, colorGrisTexto)
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // CUADRO DE ESTADO (Consulta de DB)
+            // CUADRO DE ESTADO (Muestra el estado real)
             Box(
                 modifier = Modifier
                     .width(100.dp)
-                    .height(60.dp) // Altura y ancho para contener el texto de estado
+                    .height(60.dp)
                     .background(colorVerdeClaro, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "ESTADO", // Texto fijo (simulando que el valor viene de la DB)
+                    // 🟢 Muestra el estado real
+                    text = producto.estado.uppercase(),
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 14.sp
+                    fontSize = 12.sp
                 )
             }
         }
@@ -254,7 +337,8 @@ fun ProduccionCard(referencia: String, estado: String, colorVerdeClaro: Color, c
 @Preview(showBackground = true)
 @Composable
 fun ProduccionScreenPreview() {
-    Surface(color = Color(0xFFEFEFEF)) {
-        ProduccionScreen()
+    Surface(color = ColorFondoScreen) {
+        // En el Preview se debe usar un MockViewModel
+        // ProduccionScreen()
     }
 }
