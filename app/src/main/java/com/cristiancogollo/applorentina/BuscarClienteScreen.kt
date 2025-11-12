@@ -1,4 +1,4 @@
-package com.cristiancogollo.applorentina
+    package com.cristiancogollo.applorentina
 
 
 import androidx.compose.foundation.Image

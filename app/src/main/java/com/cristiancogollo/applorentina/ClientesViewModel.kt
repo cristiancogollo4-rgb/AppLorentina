@@ -2,17 +2,13 @@ package com.cristiancogollo.applorentina
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
-enum class FilterType {
-    NOMBRE, CEDULA, TELEFONO, DEPARTAMENTO
-}
+enum class FilterType { NOMBRE, CEDULA, TELEFONO, DEPARTAMENTO }
 
 data class ClientesUiState(
     val clientes: List<Cliente> = emptyList(),
@@ -29,68 +25,45 @@ class ClientesViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ClientesUiState())
     val uiState: StateFlow<ClientesUiState> = _uiState.asStateFlow()
 
-    init {
-        fetchClientes()
-    }
+    init { fetchClientes() }
 
     fun fetchClientes() {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-        try {
-            // 🔥 Escucha en tiempo real los cambios en la colección
-            db.collection("Clientes")
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        Log.e("ClientesViewModel", "❌ Error escuchando cambios: ${error.message}")
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = "Error al escuchar datos: ${error.message}"
-                            )
-                        }
-                        return@addSnapshotListener
+        db.collection("Clientes")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("ClientesViewModel", "❌ Error escuchando cambios: ${error.message}")
+                    _uiState.update {
+                        it.copy(isLoading = false, errorMessage = "Error al escuchar datos: ${error.message}")
                     }
-
-                    if (snapshot != null) {
-                        // 🔍 Log de depuración
-                        snapshot.documents.forEach { doc ->
-                            Log.d("ClientesViewModel", "📄 DOC ${doc.id} -> ${doc.data}")
-                        }
-
-                        val clientesList = snapshot.documents.mapNotNull { doc ->
-                            try {
-                                doc.toObject(Cliente::class.java)
-
-                            } catch (e: Exception) {
-                                Log.e("ClientesViewModel", "Error mapeando doc ${doc.id}: ${e.message}")
-                                null
-                            }
-                        }
-
-                        _uiState.update {
-                            it.copy(
-                                clientes = clientesList,
-                                filteredClientes = clientesList,
-                                isLoading = false,
-                                errorMessage = null
-                            )
-                        }
-
-                        Log.d("ClientesViewModel", "✅ Lista actualizada en tiempo real (${clientesList.size} clientes)")
-                    }
+                    return@addSnapshotListener
                 }
 
-        } catch (e: Exception) {
-            Log.e("ClientesViewModel", "Excepción general en fetchClientes()", e)
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    errorMessage = "Error inesperado: ${e.message}"
-                )
-            }
-        }
-    }
+                if (snapshot != null) {
+                    val clientesList = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            val c = doc.toObject(Cliente::class.java)
+                            c?.copy(documentId = doc.id)
+                        } catch (e: Exception) {
+                            Log.e("ClientesViewModel", "Error mapeando ${doc.id}: ${e.message}")
+                            null
+                        }
+                    }
 
+                    _uiState.update {
+                        it.copy(
+                            clientes = clientesList,
+                            filteredClientes = applyFilterList(clientesList, it.searchQuery, it.filterType),
+                            isLoading = false,
+                            errorMessage = null
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }
+    }
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
@@ -104,20 +77,47 @@ class ClientesViewModel : ViewModel() {
 
     private fun applyFilter() {
         val current = _uiState.value
-        val query = current.searchQuery.lowercase().trim()
-
-        if (query.isBlank()) {
-            _uiState.update { it.copy(filteredClientes = current.clientes) }
-            return
+        _uiState.update {
+            it.copy(
+                filteredClientes = applyFilterList(current.clientes, current.searchQuery, current.filterType)
+            )
         }
+    }
 
-        val filteredList = when (current.filterType) {
-            FilterType.NOMBRE -> current.clientes.filter { it.nombreApellido.lowercase().contains(query) }
-            FilterType.CEDULA -> current.clientes.filter { it.cedula.toString().contains(query) }
-            FilterType.TELEFONO -> current.clientes.filter { it.telefono.toString().contains(query) }
-            FilterType.DEPARTAMENTO -> current.clientes.filter { it.departamento.lowercase().contains(query) }
+    private fun applyFilterList(
+        base: List<Cliente>,
+        queryRaw: String,
+        type: FilterType
+    ): List<Cliente> {
+        val q = queryRaw.lowercase().trim()
+        if (q.isBlank()) return base
+
+        return when (type) {
+            FilterType.NOMBRE -> base.filter { it.nombreApellido.lowercase().contains(q) }
+            FilterType.CEDULA -> base.filter { it.cedula.toString().contains(q) }
+            FilterType.TELEFONO -> base.filter { it.telefono.toString().contains(q) }
+            FilterType.DEPARTAMENTO -> base.filter { it.departamento.lowercase().contains(q) }
         }
+    }
 
-        _uiState.update { it.copy(filteredClientes = filteredList) }
+    fun deleteCliente(documentId: String, onError: (String) -> Unit = {}) {
+        if (documentId.isBlank()) return
+        db.collection("Clientes").document(documentId)
+            .delete()
+            .addOnFailureListener { e ->
+                onError(e.message ?: "Error eliminando")
+            }
+    }
+
+    fun updateCliente(cliente: Cliente) {
+        if (cliente.documentId.isBlank()) return
+        db.collection("Clientes").document(cliente.documentId)
+            .set(cliente)
+            .addOnSuccessListener {
+                Log.d("ClientesVM", "Cliente actualizado correctamente")
+            }
+            .addOnFailureListener { e ->
+                Log.e("ClientesVM", "Error actualizando cliente: ${e.message}")
+            }
     }
 }
