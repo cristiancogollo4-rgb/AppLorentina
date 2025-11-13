@@ -227,20 +227,7 @@ fun ClientesScreenAdmin(
         // ASUME QUE AgregarClienteDialog y sus parámetros son correctos
         AgregarClienteDialog(
             onDismiss = { showAddDialog = false },
-            onSave = { nombre, cedula, telefono, correo, departamento, municipio, tipo ->
-                val db = FirebaseFirestore.getInstance()
-                val cliente = hashMapOf(
-                    "nombreApellido" to nombre,
-                    "cedula" to cedula.toLongOrNull(),
-                    "telefono" to telefono.toLongOrNull(),
-                    "correo" to correo,
-                    "departamento" to departamento,
-                    "municipio" to municipio,
-                    "tipoCliente" to tipo
-                )
-                db.collection("Clientes").add(cliente)
-                showAddDialog = false
-            }
+
         )
     }
 }

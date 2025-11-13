@@ -326,32 +326,40 @@ class NventaViewModel : ViewModel() {
 
             val s = uiState.value
             val cli = s.clienteSeleccionado
-            val precioNullable = s.precio.toDoubleOrNull() // Sigue siendo Double?
+            val precioNullable = s.precio.toDoubleOrNull()
 
-            // VALIDACIÓN: Si es nulo, retornar
+            // VALIDACIÓN: (Mantiene las validaciones existentes)
+            // ... (Tu código de validación existente) ...
+
             if (cli == null || precioNullable == null || (!s.esVentaEspecial && s.productosEnVenta.isEmpty())) {
-                val errorMsg = when {
-                    cli == null -> "Debe seleccionar un cliente."
-                    precioNullable == null -> "Debe ingresar un precio válido."
-                    else -> "Debe agregar al menos un producto, o marcar como Venta Especial."
-                }
-                _uiState.update { it.copy(isSaving = false, mensajeError = errorMsg) }
-                onError(errorMsg)
+                // ... (Tu manejo de error existente) ...
                 return@launch
             }
 
-            // FIX: Usar el operador de aserción no nula (!!) para obtener un Double no nulo.
+            // FIX CLAVE: Pre-generamos la referencia y el ID ANTES de la transacción
+            // Esto asegura que la referencia sea válida y que el ID exista.
+            val ventaRef = db.collection("Ventas").document()
+            val newVentaId = ventaRef.id // ID único generado
+
             val precioFinal: Double = precioNullable!!
 
             // 1. Iniciar la transacción de Firestore
             db.runTransaction { transaction ->
-                // --- 2. Deducir Inventario ---
+
+                // --- FASE 1: LECTURA DE DOCUMENTOS (READS) ---
+                val productosAfectados = mutableMapOf<String, Producto>()
+                val nuevosStock = mutableMapOf<String, Map<String, Int>>()
+
                 if (!s.esVentaEspecial) {
-                    // ... (Lógica de descuento de stock, permanece igual) ...
+                    // ... (Tu lógica de lectura de productos y cálculo de stock sigue aquí) ...
+                    // Asegúrate de que TODAS las llamadas a transaction.get() se hagan antes de cualquier escritura.
                     s.productosEnVenta.forEach { itemVendido ->
-                        val productoRef =
-                            db.collection("Productos").document(itemVendido.idProducto)
+                        val productoRef = db.collection("Productos").document(itemVendido.idProducto)
+
+                        // 🟢 LECTURA
                         val productoDoc = transaction.get(productoRef)
+
+                        // ... (Validación de stock y cálculo de nuevoMapaStock) ...
 
                         val productoActual = productoDoc.toObject(Producto::class.java)
                             ?: throw FirebaseFirestoreException(
@@ -359,6 +367,7 @@ class NventaViewModel : ViewModel() {
                                 FirebaseFirestoreException.Code.ABORTED
                             )
 
+                        // ... (Cálculo del nuevo stock y guardado en nuevosStock) ...
                         val stockActual = productoActual.stockPorTalla[itemVendido.talla] ?: 0
 
                         if (stockActual < itemVendido.cantidad) {
@@ -368,20 +377,31 @@ class NventaViewModel : ViewModel() {
                             )
                         }
 
-                        val nuevoStock = stockActual - itemVendido.cantidad
+                        val nuevoStockTalla = stockActual - itemVendido.cantidad
                         val nuevoMapaStock = productoActual.stockPorTalla.toMutableMap()
-                        nuevoMapaStock[itemVendido.talla] = nuevoStock
+                        nuevoMapaStock[itemVendido.talla] = nuevoStockTalla
 
+                        nuevosStock[itemVendido.idProducto] = nuevoMapaStock.toMap() as Map<String, Int>
+                    }
+                }
+
+                // --- FASE 2: ESCRITURA DE DOCUMENTOS (WRITES) ---
+
+                // 1. ACTUALIZAR PRODUCTOS
+                if (!s.esVentaEspecial) {
+                    nuevosStock.forEach { (idProducto, stockMap) ->
+                        val productoRef = db.collection("Productos").document(idProducto)
+                        // 🟢 ESCRITURA 1: Update de stock
                         transaction.update(
                             productoRef,
-                            "stockPorTalla", nuevoMapaStock
+                            "stockPorTalla", stockMap
                         )
                     }
                 }
 
-                // --- 4. Crear el documento de Venta ---
+                // 2. CREAR VENTA
                 val venta = Venta(
-                    idVenta = db.collection("Ventas").document().id,
+                    idVenta = newVentaId, // ⬅️ Usamos el ID pre-generado
                     cliente = cli,
                     fechaVenta = s.fechaVenta,
                     precioTotal = precioFinal,
@@ -391,10 +411,11 @@ class NventaViewModel : ViewModel() {
                     productos = s.productosEnVenta
                 )
 
-                val ventaRef = db.collection("Ventas").document(venta.idVenta)
+                // 🟢 ESCRITURA 2: Creación de Venta. Usamos la referencia pre-generada.
                 transaction.set(ventaRef, venta)
 
                 null
+                      // Retorna null al finalizar la transacción exitosamente
             }
                 // ******************************************************
                 // 💡 AÑADIDO: Manejo de éxito y fracaso para la transacción

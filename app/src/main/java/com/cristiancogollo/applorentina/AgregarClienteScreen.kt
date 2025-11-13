@@ -32,7 +32,6 @@ import me.oscarsanchez.myapplication.ActionButton
 val ColorVerdeOscuro = Color(0xFFB5CC00)
 val ColorVerdeClaroBoton = Color(0xFFC2D500)
 val ColorGrisTexto = Color(0xFF5C5C5C)
-val ColorFondoCard = Color(0xFFF8F8F8)
 
 
 // =================================================================
@@ -45,7 +44,6 @@ fun AgregarClienteScreen(
     onBackClick: () -> Unit,
     viewModel: AgregarClienteViewModel = viewModel(factory = AgregarClienteViewModelFactory(LocalContext.current))
 ) {
-    val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val isFormValid by viewModel.isFormValid.collectAsState()
     val formState = uiState.formState

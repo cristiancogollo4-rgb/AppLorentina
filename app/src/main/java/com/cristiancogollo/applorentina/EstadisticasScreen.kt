@@ -1,6 +1,5 @@
 package com.cristiancogollo.applorentina
 
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,22 +26,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.lifecycle.viewmodel.compose.viewModel // 💡 Importar ViewModel
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
-    // Estado para cambiar entre "detal" y "mayor"
-    var tipoVista by remember { mutableStateOf("detal") }
-
-    // Datos para cada tipo
-    val datos = if (tipoVista == "detal") {
-        listOf(40f, 30f, 60f, 50f)
-    } else {
-        listOf(20f, 45f, 35f, 70f)
-    }
-
-    val paresVendidos = if (tipoVista == "detal") 75 else 120
-    val comision = if (tipoVista == "detal") "$200.000" else "$350.000"
+fun EstadisticasScreen(
+    onBackClick: () -> Unit = {},
+    viewModel: EstadisticasViewModel = viewModel(
+        factory = EstadisticasViewModelFactory())// 💡 Inyectar VM
+) {
+    // 💡 Consumir el estado del ViewModel
+    val uiState by viewModel.uiState.collectAsState()
+    val labels = viewModel.labels // Las etiquetas son constantes en el VM
 
     Column(
         modifier = Modifier
@@ -50,7 +45,7 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Barra superior con imagen
+        // Barra superior con imagen (Sin cambios)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -63,7 +58,7 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
                     .align(Alignment.CenterStart)
                     .padding(start = 8.dp)
             ) {
-                IconButton(onClick = onBackClick) { // 👈 Llama a la acción de volver
+                IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Volver",
@@ -99,10 +94,15 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
                 .background(Color.White, RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
-            BarChartCompose(
-                values = datos,
-                labels = listOf("Semana 1", "Semana 2", "Semana 3", "Semana 4")
-            )
+            // Mostrar indicador de carga mientras se obtienen los datos
+            if (uiState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                BarChartCompose(
+                    values = uiState.datosGrafico, // 💡 Usar datos del estado
+                    labels = labels
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -113,9 +113,9 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
             horizontalArrangement = Arrangement.Center
         ) {
             Button(
-                onClick = { tipoVista = "detal" },
+                onClick = { viewModel.cambiarTipoVista(TipoVenta.DETAL) }, // 💡 Llamar a función del VM
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (tipoVista == "detal") Color(0xFF00BCD4) else Color(0xFFB2EBF2)
+                    containerColor = if (uiState.tipoVista == TipoVenta.DETAL) Color(0xFF00BCD4) else Color(0xFFB2EBF2)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -125,9 +125,9 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
             Spacer(modifier = Modifier.width(8.dp))
 
             Button(
-                onClick = { tipoVista = "mayor" },
+                onClick = { viewModel.cambiarTipoVista(TipoVenta.MAYOR) }, // 💡 Llamar a función del VM
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (tipoVista == "mayor") Color(0xFF00BCD4) else Color(0xFFB2EBF2)
+                    containerColor = if (uiState.tipoVista == TipoVenta.MAYOR) Color(0xFF00BCD4) else Color(0xFFB2EBF2)
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -142,12 +142,27 @@ fun EstadisticasScreen(onBackClick: () -> Unit = {}) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            EstadisticaCard(paresVendidos.toString(), "PARES VENDIDOS\nESTA SEMANA")
-            EstadisticaCard(comision, "TU COMISIÓN DE\nESTA SEMANA")
+            // 💡 Usar datos del estado
+            EstadisticaCard(
+                uiState.paresVendidos.toString(),
+                "PARES VENDIDOS\nESTA SEMANA"
+            )
+            // 💡 Usar datos del estado
+            EstadisticaCard(
+                uiState.comisionSemanal,
+                "TU COMISIÓN DE\nESTA SEMANA"
+            )
+        }
+
+        // Mostrar errores si existen
+        uiState.error?.let {
+            Text(it, color = Color.Red, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
 
+// ⚠️ El resto de los composables (EstadisticaCard, BarChartCompose, EstadisticasPreview) no necesitan cambios.
+// Mantenlos en tu archivo EstadisticasScreen.kt o donde estén definidos.
 @Composable
 fun EstadisticaCard(valor: String, descripcion: String) {
     Column(
