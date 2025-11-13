@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
+import androidx.compose.ui.unit.LayoutDirection // Necesario para calcular padding start/end
 
 @Composable
 fun ClientesScreenAdmin(
@@ -83,8 +84,13 @@ fun ClientesScreenAdmin(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                // 5. **Aplicamos el padding del Scaffold. Esto deja espacio para el botón fijo.**
-                .padding(paddingValues),
+                // 5. **CORRECCIÓN:** Aplicamos solo el padding inferior, ignorando el superior
+                .padding(
+                    top = 0.dp, // <-- ¡CAMBIO CLAVE! Esto elimina el espacio blanco superior
+                    bottom = paddingValues.calculateBottomPadding(),
+                    start = paddingValues.calculateStartPadding(LayoutDirection.Ltr),
+                    end = paddingValues.calculateEndPadding(LayoutDirection.Ltr)
+                ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // 🟩 Barra superior (Se mantiene igual)
@@ -113,6 +119,7 @@ fun ClientesScreenAdmin(
                 }
 
                 Image(
+                    // ASUME QUE R.drawable.lorenita EXISTE
                     painter = painterResource(id = R.drawable.lorenita),
                     contentDescription = "Logo Lorentina",
                     modifier = Modifier
@@ -184,8 +191,7 @@ fun ClientesScreenAdmin(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 6. **Reemplazamos el forEach y el scroll manual por LazyColumn**
-            // LazyColumn es la forma eficiente de hacer scroll en Compose.
+            // 6. **LazyColumn para la lista (scroll)**
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 10.dp), // Espacio al final de la lista
@@ -205,6 +211,7 @@ fun ClientesScreenAdmin(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // ASUME QUE Cliente tiene propiedades nombreApellido, cedula, telefono
                             Text(cliente.nombreApellido, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Text(cliente.cedula.toString(), fontSize = 13.sp)
                             Text(cliente.telefono.toString(), fontSize = 13.sp)
@@ -217,6 +224,7 @@ fun ClientesScreenAdmin(
 
     // 🪟 Diálogo de agregar cliente (Se mantiene igual)
     if (showAddDialog) {
+        // ASUME QUE AgregarClienteDialog y sus parámetros son correctos
         AgregarClienteDialog(
             onDismiss = { showAddDialog = false },
             onSave = { nombre, cedula, telefono, correo, departamento, municipio, tipo ->
