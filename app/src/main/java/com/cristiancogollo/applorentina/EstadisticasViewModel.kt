@@ -15,7 +15,7 @@ private const val COMISION_DETAL = 5000L
 private const val COMISION_MAYOR = 2500L
 
 class EstadisticasViewModel(
-    private val repository: VentaRepository = VentaRepository() // Ahora inyectamos el repositorio
+    private val repository: VentaRepository = VentaRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EstadisticasUiState(isLoading = true))
@@ -38,27 +38,35 @@ class EstadisticasViewModel(
             _uiState.update { it.copy(isLoading = true, tipoVista = tipo, error = null) }
 
             try {
-                // 1. Obtener datos reales de Firebase a través del repositorio
-                val ventasPorSemana = repository.getVentasPorTipoSemanal(tipo)
+                // 1. Obtener los datos (VentaEstadistica)
+                val ventasPorSemana: Map<Int, List<VentaEstadistica>> =
+                    repository.getVentasPorTipoSemanal(tipo)
 
-                // 2. Calcular las métricas
-                val datosGrafico: List<Float> = labels.indices.map { index ->
-                    val weekIndex = index + 1 // Semana 1, 2, 3, 4
-                    val ventasDeLaSemana = ventasPorSemana[weekIndex] ?: emptyList()
-                    // Sumar la cantidad de pares vendidos para esa semana
-                    ventasDeLaSemana.sumOf { it.cantidadParesVendidos }.toFloat()
+                // 2. Procesar datos para el gráfico y el resumen
+
+                // Calcular pares por semana (lista de Int)
+                val paresPorSemana: List<Int> = labels.indices.map { index ->
+                    val weekIndex = index + 1
+                    val ventasDeLaSemana: List<VentaEstadistica> =
+                        ventasPorSemana[weekIndex] ?: emptyList()
+                    ventasDeLaSemana.sumOf { it.cantidadParesVendidos }
                 }
 
-                // 💡 USAR EL TOTAL DEL PERÍODO para la tarjeta y la comisión
-                val paresVendidosTotales = datosGrafico.sum().toInt()
-                val comision = calcularComision(tipo, paresVendidosTotales)
+                // Convertir a lista de Float para el gráfico
+                val datosGrafico: List<Float> = paresPorSemana.map { it.toFloat() }
+
+                // 💡 CORRECCIÓN PARA EL RESUMEN (TARJETAS):
+                // Usar el total de pares de la última semana (índice 3 de la lista paresPorSemana)
+                val paresVendidosSemanaActual = paresPorSemana.getOrNull(3) ?: 0
+
+                val comision = calcularComision(tipo, paresVendidosSemanaActual)
                 val comisionFormateada = formatCurrency(comision)
 
                 // 3. Actualizar el estado (Éxito)
                 _uiState.update {
                     it.copy(
                         datosGrafico = datosGrafico,
-                        paresVendidos = paresVendidosTotales,
+                        paresVendidos = paresVendidosSemanaActual,
                         comisionSemanal = comisionFormateada,
                         isLoading = false
                     )
@@ -94,7 +102,7 @@ class EstadisticasViewModelFactory() : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(EstadisticasViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            // 💡 Ahora llamamos al constructor sin pasar el repositorio, usando el valor por defecto.
+            // Ahora llamamos al constructor sin pasar el repositorio, usando el valor por defecto.
             return EstadisticasViewModel() as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

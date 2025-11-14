@@ -11,15 +11,6 @@ import java.text.NumberFormat
 import java.util.Locale
 import java.util.Date
 
-data class AdminEstadisticasUiState(
-    val isLoading: Boolean = true,
-    val error: String? = null,
-    val datosGrafico: List<Float> = emptyList(),
-    val paresVendidosSemana: Int = 0,
-    val gananciasSemanaFormateada: String = "$0",
-    val tipoVista: TipoVenta = TipoVenta.DETAL
-)
-
 class AdminEstadisticasViewModel(
     private val repository: VentaRepository = VentaRepository()
 ) : ViewModel() {
@@ -44,34 +35,34 @@ class AdminEstadisticasViewModel(
             _uiState.update { it.copy(isLoading = true, tipoVista = tipo, error = null) }
 
             try {
-                // 🔹 Mapa: número de semana -> lista de ventas
+                // Llama a la función que devuelve List<Venta> con filtro de 4 semanas
                 val ventasPorSemana: Map<Int, List<Venta>> =
-                    repository.getVentasPorTipoSemanal(tipo)
+                    repository.getVentasDeLasUltimas4Semanas(tipo)
 
-                // ===== DATOS PARA LA GRÁFICA =====
-                // En el admin mostramos PARES vendidos por semana
+                // ===== DATOS PARA LA GRÁFICA (Pares vendidos por semana) =====
                 val datosGrafico: List<Float> = labels.indices.map { index ->
-                    val weekIndex = index + 1  // 1,2,3,4
-
+                    val weekIndex = index + 1
                     val ventasDeLaSemana: List<Venta> =
                         ventasPorSemana[weekIndex] ?: emptyList()
 
+                    // Usar conteo manual para asegurar la data de pares
                     val paresSemana = ventasDeLaSemana.sumOf { contarParesDeVenta(it) }
 
                     paresSemana.toFloat()
                 }
 
-                // ===== TARJETAS: SEMANA ACTUAL =====
-                val semanaActualIndex = repository.getWeekOfMonth(Date())
+                // ===== TARJETAS: SEMANA ACTUAL (Usando la Semana 4 del gráfico fijo) =====
+                // La "Semana Actual" es siempre la última semana cargada (índice 4 del mapa).
+                val semanaActualIndexFija = 4
 
                 val ventasSemanaActual: List<Venta> =
-                    ventasPorSemana[semanaActualIndex] ?: emptyList()
+                    ventasPorSemana[semanaActualIndexFija] ?: emptyList()
 
                 // 🔢 Total de pares vendidos en la semana actual
                 val paresSemanaActual =
                     ventasSemanaActual.sumOf { contarParesDeVenta(it) }
 
-                // 💰 Ganancia total = suma de precioTotal
+                // 💰 Ganancia total (suma de precioTotal)
                 val gananciasSemanaActual: Double =
                     ventasSemanaActual.sumOf { it.precioTotal }
 
@@ -98,20 +89,13 @@ class AdminEstadisticasViewModel(
     }
 
     /**
-     * Cuenta cuántos pares hay en una venta, según el array "productos"
-     * tal como lo guardas en Firestore:
-     *
-     * productos: [
-     *   { cantidad: 1, nombreModelo: "Romanas", ... },
-     *   { cantidad: 2, nombreModelo: "Otro", ... }
-     * ]
+     * Cuenta cuántos pares hay en una venta, leyendo manualmente la lista "productos".
      */
     private fun contarParesDeVenta(venta: Venta): Int {
-        // En tu data class Venta tienes: productos: List<Any>
+        // Asegura que 'productos' se trate como una lista de mapas (que es lo que devuelve Firestore)
         val productosList = venta.productos as? List<Map<String, Any?>> ?: return 0
-
         return productosList.sumOf { producto ->
-            // Firestore guarda números como Long por defecto
+            // Firestore guarda Ints como Long, necesitamos castear
             (producto["cantidad"] as? Long)?.toInt() ?: 0
         }
     }
