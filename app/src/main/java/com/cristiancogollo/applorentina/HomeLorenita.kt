@@ -73,7 +73,7 @@ fun HomeScreen(navController: NavHostController, onLogoutClick: () -> Unit = {})
 
         // Texto de saludo
         Text(
-            text = "¡HOLA, [NOMBRE]!",
+            text = "¡HOLA!",
             color = Color(0xFF6A4E23),
             fontSize = 26.sp,
             fontWeight = FontWeight.ExtraBold,
