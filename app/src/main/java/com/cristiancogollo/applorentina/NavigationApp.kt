@@ -232,7 +232,7 @@ fun NavigationApp() {
         }
 
         composable(Screen.EstadisticasAdmin.route) {
-            EstadisticasScreenAdmin(onBackClick = { navController.navigate(Screen.HomeAdmin.route) })
+            EstadisticasAdminScreen(onBackClick = { navController.navigate(Screen.HomeAdmin.route) })
         }
 
         composable(Screen.AgregarTareaAdmin.route) {

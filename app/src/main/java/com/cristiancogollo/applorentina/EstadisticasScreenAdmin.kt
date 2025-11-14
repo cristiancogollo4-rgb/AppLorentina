@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue   // 👈 para el `by`
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -22,14 +24,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cristiancogollo.applorentina.ui.theme.AppLorentinaTheme
 
 @Composable
-fun EstadisticasScreenAdmin(
-    onBackClick: () -> Unit = {} // 👈 parámetro para la flecha
+fun EstadisticasAdminScreen(
+    onBackClick: () -> Unit = {},
+    viewModel: AdminEstadisticasViewModel = viewModel(
+        factory = AdminEstadisticasViewModelFactory()
+    )
 ) {
-    val valores = listOf(40f, 30f, 60f, 50f)
-    val semanas = listOf("Semana 1", "Semana 2", "Semana 3", "Semana 4")
+    val uiState by viewModel.uiState.collectAsState()
+    val labels = viewModel.labels
 
     Column(
         modifier = Modifier
@@ -37,193 +43,169 @@ fun EstadisticasScreenAdmin(
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 🩶 Barra superior con flecha y logo
+        // ====== BARRA SUPERIOR (GRIS COMO HOME ADMIN) ======
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFBDBDBD))
+                .background(Color(0xFFE0E0E0)) // GRIS
                 .padding(vertical = 15.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 🔙 Flecha de retroceso
-            IconButton(
-                onClick = onBackClick,
+            Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Volver",
-                    tint = Color.White,
-                    modifier = Modifier.size(35.dp)
-                )
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Volver",
+                        tint = Color.DarkGray,
+                        modifier = Modifier.size(35.dp)
+                    )
+                }
             }
-
-            // 🟫 Logo
             Image(
                 painter = painterResource(id = R.drawable.lorenita),
                 contentDescription = "Logo Lorentina",
                 modifier = Modifier
-                    .height(180.dp)
-                    .width(180.dp)
+                    .height(200.dp)
+                    .width(200.dp)
             )
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 🔹 Título
         Text(
-            text = "TUS ESTADÍSTICAS",
-            color = Color(0xFF6A4E23),
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 22.sp,
-            textAlign = TextAlign.Center
+            text = "TUS ESTADÍSTICAS (ADMIN)",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.DarkGray,
+            modifier = Modifier.padding(vertical = 16.dp)
         )
+
+        // ====== GRÁFICO ======
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .background(Color.White, RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                BarChartCompose(
+                    values = uiState.datosGrafico,
+                    labels = labels
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 📊 Gráfico de barras
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(240.dp)
-                .background(Color.White, RoundedCornerShape(20.dp))
-                .padding(10.dp),
-            contentAlignment = Alignment.BottomCenter
+        // ====== BOTONES DETAL / MAYOR EN GRIS ======
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val barWidth = size.width / 10f
-                val spacing = barWidth * 1.3f
-                val maxVal = valores.maxOrNull() ?: 0f
-                val scale = (size.height - 60f) / maxVal
-                val baseY = size.height - 40f
+            Button(
+                onClick = { viewModel.cambiarTipoVista(TipoVenta.DETAL) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (uiState.tipoVista == TipoVenta.DETAL)
+                        Color.Gray          // activo
+                    else
+                        Color(0xFFBDBDBD)   // inactivo
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("#PARES AL DETAL", color = Color.White)
+            }
 
-                drawLine(
-                    color = Color.Black,
-                    start = Offset(0f, baseY),
-                    end = Offset(size.width, baseY),
-                    strokeWidth = 6f
-                )
+            Spacer(modifier = Modifier.width(8.dp))
 
-                valores.forEachIndexed { index, valor ->
-                    val barHeight = valor * scale
-                    val left = index * (barWidth + spacing) + spacing / 1.5f
-                    val top = baseY - barHeight
-
-                    drawRoundRect(
-                        color = Color(0xFF67E8F9),
-                        topLeft = Offset(left, top),
-                        size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
-                    )
-
-                    drawContext.canvas.nativeCanvas.apply {
-                        drawText(
-                            valor.toInt().toString(),
-                            left + barWidth / 3,
-                            top - 8,
-                            android.graphics.Paint().apply {
-                                textSize = 28f
-                                color = android.graphics.Color.BLACK
-                                textAlign = android.graphics.Paint.Align.LEFT
-                            }
-                        )
-                    }
-
-                    drawContext.canvas.nativeCanvas.apply {
-                        drawText(
-                            semanas[index],
-                            left - 10,
-                            baseY + 30,
-                            android.graphics.Paint().apply {
-                                textSize = 26f
-                                color = android.graphics.Color.GRAY
-                            }
-                        )
-                    }
-                }
+            Button(
+                onClick = { viewModel.cambiarTipoVista(TipoVenta.MAYOR) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (uiState.tipoVista == TipoVenta.MAYOR)
+                        Color.Gray
+                    else
+                        Color(0xFFBDBDBD)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("#PARES AL POR MAYOR", color = Color.White)
             }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 🔘 Botones tipo etiqueta
+        // ====== TARJETAS DE ESTADÍSTICAS (ADMIN) EN GRIS ======
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            EstatButton("#TOTAL DE STOCK")
-            EstatButton("#PARES VENDIDOS")
+            // 1. PARES VENDIDOS ESTA SEMANA (global para ese tipo)
+            EstadisticaAdminCard(
+                valor = uiState.paresVendidosSemana.toString(),
+                descripcion = "PARES VENDIDOS\nESTA SEMANA"
+            )
+
+            // 2. GANANCIAS POR SEMANA (global para ese tipo)
+            EstadisticaAdminCard(
+                valor = uiState.gananciasSemanaFormateada,
+                descripcion = "GANANCIAS POR\nSEMANA"
+            )
         }
 
-        Spacer(modifier = Modifier.height(25.dp))
-
-        // 🟩 Tarjetas de métricas
-        Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            EstatCard("750", "PARES VENDIDOS\nESTA SEMANA")
-            EstatCard("$6.000.000", "GANANCIAS POR\nSEMANA")
+        // ====== ERRORES ======
+        uiState.error?.let { mensaje ->
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = mensaje,
+                color = Color.Red,
+                modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
 
+/**
+ * Card SOLO para el ADMIN en gris, para no afectar la card del vendedor.
+ */
 @Composable
-fun EstatButton(text: String) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color(0xFF00BFFF),
-        shadowElevation = 4.dp
+fun EstadisticaAdminCard(
+    valor: String,
+    descripcion: String
+) {
+    Column(
+        modifier = Modifier
+            .width(150.dp)
+            .background(Color(0xFFBDBDBD), RoundedCornerShape(12.dp)) // GRIS
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = text,
-            color = Color.White,
+            text = valor,
+            fontSize = 25.sp,
             fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = descripcion,
             fontSize = 13.sp,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
         )
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-fun EstatCard(valor: String, descripcion: String) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = Color(0xFFBDBDBD),
-        shadowElevation = 6.dp,
-        modifier = Modifier
-            .width(150.dp)
-            .height(110.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = valor,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 26.sp,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = descripcion,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun EstadisticasPreviewAdmin() {
+fun AdminEstadisticasPreview() {
     AppLorentinaTheme {
-        EstadisticasScreenAdmin()
+        EstadisticasAdminScreen()
     }
 }
